@@ -16,8 +16,8 @@ add_executable(
   tpsplayer.cc
 )
 
-# sokol_app/sokol_audio linked libraries
-if (CMAKE_HOST_LINUX)
+# sokol_audio linked libraries
+if (CMAKE_HOST_LINUX AND NOT MINGW)
   target_link_libraries(tpsplayer asound)
 endif()
 

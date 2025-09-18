@@ -22,7 +22,7 @@ It integrates the PrimeSynth (https://github.com/mosmeh/primesynth) and BW_Midi_
 ## Compilation
 Define `TINYPRIMESYNTH_IMPLEMENTATION` before including `tinyprimesynth.hpp` in one source file within your project. It can then be included anywhere else that it needs to be referenced.
 
-To compile a test program, please use the CMakeLists file in the `example` directory. It has a command-line interface whose usage can be shown with the 'help' parameter. You can pass either the bundled song and soundfont, or paths to your own.
+To compile a test program for Windows or Linux, please use the CMakeLists file in the `example` directory. It has a command-line interface whose usage can be shown with the 'help' parameter. You can pass either the bundled song and soundfont, or paths to your own.
 
 If both the soundfont and song are successfully loaded, playback will begin. The song will loop indefinitely. Press enter or issue a break command to exit at any time.
 
