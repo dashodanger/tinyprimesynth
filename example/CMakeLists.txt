@@ -18,11 +18,9 @@ add_executable(
 
 # sokol_app/sokol_audio linked libraries
 if (WIN32 OR MINGW)
-  target_compile_definitions (tpsplayer PUBLIC SOKOL_D3D11)
-  target_link_libraries(tpsplayer d3d11 winmm kernel32)
+  target_link_libraries(tpsplayer winmm kernel32)
 elseif (CMAKE_HOST_LINUX)
-  target_compile_definitions (tpsplayer PUBLIC SOKOL_GLCORE33)
-  target_link_libraries(tpsplayer asound X11 Xi Xcursor GL dl pthread m)
+  target_link_libraries(tpsplayer asound)
 endif()
 
 set(COPY_FILES "")

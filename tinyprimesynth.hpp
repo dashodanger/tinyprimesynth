@@ -4308,6 +4308,7 @@ Synthesizer::Synthesizer(float p_rate, size_t p_voices) :
 }
 
 Synthesizer::~Synthesizer() {
+	sequencer->full_reset();
 	delete soundfont;
 	delete sequencer;
 	for (Voice *voice : voices) {
