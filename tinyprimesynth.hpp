@@ -110,6 +110,9 @@ private:
 #include <string.h>
 #include <list>
 #include <set>
+#ifdef _WIN32
+#include <Windows.h>
+#endif
 namespace tinyprimesynth {
 
 FileAndMemReader::FileAndMemReader() :
@@ -164,7 +167,7 @@ void FileAndMemReader::open_file(const char *p_path) {
 	fp = fopen(p_path, "rb");
 #else
 	wchar_t widePath[MAX_PATH];
-	int size = MultiByteToWideChar(CP_UTF8, 0, p_path, (int)strlen(path), widePath, MAX_PATH);
+	int size = MultiByteToWideChar(CP_UTF8, 0, p_path, (int)strlen(p_path), widePath, MAX_PATH);
 	widePath[size] = '\0';
 	fp = _wfopen(widePath, L"rb");
 #endif
@@ -2990,7 +2993,7 @@ class Synthesizer::Sequencer {
 						}
 						// Then calculate time between last tempo change point and
 						// end point
-						TempoChangePoint tail_tempo = *points.end();
+						TempoChangePoint tail_tempo = points.back();
 						uint64_t post_delay = pos.absolute_position - tail_tempo.absolute_position;
 						t = current_tempo * post_delay;
 						pos_prev->time_delay += t.value();

@@ -42,7 +42,67 @@ static void stream_cb(float *buffer, int num_frames, int num_channels, void *use
 	}
 }
 
+static void print_help() {
+	printf("\nUsage: tpsplayer soundfont=file song=file [voices=count]\n"
+		   "\n"
+		   "Supported soundfont formats:\n"
+		   "- SF2\n"
+		   "\n"
+		   "Supported song formats:\n"
+		   "- MIDI\n"
+		   "- MUS (Electronic Arts)\n"
+		   "- RMI\n"
+		   "- GMF\n"
+		   "\n"
+		   "Recommend voice count of at least 24 to meet General MIDI I requirements\n"
+		   "\n");
+}
+
 static void init(void *user_data) {
+	if (sargs_num_args() == 1 || sargs_exists("help")) {
+		print_help();
+		exit(EXIT_SUCCESS);
+	}
+	const char *parm_check = sargs_value("soundfont");
+	if (*parm_check == '\0') {
+		print_help();
+		exit(EXIT_FAILURE);
+	} else {
+		midi_soundfont = new tinyprimesynth::FileAndMemReader;
+		midi_soundfont->open_file(parm_check);
+		if (!midi_soundfont->is_valid()) {
+			delete midi_soundfont;
+			printf("Error opening soundfont %s\n", parm_check);
+			exit(EXIT_FAILURE);
+		}
+	}
+	parm_check = sargs_value("song");
+	if (*parm_check == '\0') {
+		print_help();
+		exit(EXIT_FAILURE);
+	} else {
+		midi_track = new tinyprimesynth::FileAndMemReader;
+		midi_track->open_file(parm_check);
+		if (!midi_track->is_valid()) {
+			delete midi_soundfont;
+			delete midi_track;
+			printf("Error opening song %s\n", parm_check);
+			exit(EXIT_FAILURE);
+		}
+	}
+	parm_check = sargs_value("voices");
+	if (*parm_check != '\0') {
+		int voices = atoi(parm_check);
+		if (voices <= 0) {
+			delete midi_soundfont;
+			delete midi_track;
+			printf("Must have more than 0 voices!\n");
+			exit(EXIT_FAILURE);
+		} else {
+			midi_voices = (size_t)voices;
+		}
+	}
+
 	// setup sokol_gfx
 	sg_desc init_sg;
 	memset(&init_sg, 0, sizeof(sg_desc));
@@ -102,71 +162,12 @@ static void cleanup(void *user_data) {
 	sg_shutdown();
 }
 
-static void print_help() {
-	printf("\nUsage: tpsplayer soundfont=file song=file [voices=count]\n"
-		   "\n"
-		   "Supported soundfont formats:\n"
-		   "- SF2\n"
-		   "\n"
-		   "Supported song formats:\n"
-		   "- MIDI\n"
-		   "- MUS (Electronic Arts)\n"
-		   "- RMI\n"
-		   "- GMF\n"
-		   "\n"
-		   "Recommend voice count of at least 24 to meet General MIDI I requirements\n"
-		   "\n");
-}
-
 sapp_desc sokol_main(int argc, char *argv[]) {
-	sargs_desc player_args;
-	memset(&player_args, 0, sizeof(sargs_desc));
-	player_args.argc = argc;
-	player_args.argv = argv;
-	sargs_setup(player_args);
-	if (argc == 1 || sargs_exists("help")) {
-		print_help();
-		exit(EXIT_SUCCESS);
-	}
-	const char *parm_check = sargs_value("soundfont");
-	if (*parm_check == '\0') {
-		print_help();
-		exit(EXIT_FAILURE);
-	} else {
-		midi_soundfont = new tinyprimesynth::FileAndMemReader;
-		midi_soundfont->open_file(parm_check);
-		if (!midi_soundfont->is_valid()) {
-			delete midi_soundfont;
-			printf("Error opening soundfont %s\n", parm_check);
-			exit(EXIT_FAILURE);
-		}
-	}
-	parm_check = sargs_value("song");
-	if (*parm_check == '\0') {
-		print_help();
-		exit(EXIT_FAILURE);
-	} else {
-		midi_track = new tinyprimesynth::FileAndMemReader;
-		midi_track->open_file(parm_check);
-		if (!midi_track->is_valid()) {
-			delete midi_soundfont;
-			delete midi_track;
-			printf("Error opening song %s\n", parm_check);
-			exit(EXIT_FAILURE);
-		}
-	}
-	parm_check = sargs_value("voices");
-	if (*parm_check != '\0') {
-		int voices = atoi(parm_check);
-		if (voices <= 0) {
-			delete midi_soundfont;
-			delete midi_track;
-			printf("Must have more than 0 voices!\n");
-			exit(EXIT_FAILURE);
-		} else {
-			midi_voices = (size_t)voices;
-		}
-	}
+	sargs_desc init_args;
+	memset(&init_args, 0, sizeof(sargs_desc));
+	init_args.argc = argc;
+	init_args.argv = argv;
+	sargs_setup(init_args);
 	sapp_desc init_sapp;
 	memset(&init_sapp, 0, sizeof(sapp_desc));
 	init_sapp.init_userdata_cb = init;
@@ -178,5 +179,8 @@ sapp_desc sokol_main(int argc, char *argv[]) {
 	init_sapp.window_title = "Sokol Audio + TinyPrimeSynth";
 	init_sapp.icon.sokol_default = true;
 	init_sapp.logger.func = slog_func;
+#ifdef _WIN32
+	init_sapp.win32_console_attach = true;
+#endif
 	return init_sapp;
 }
