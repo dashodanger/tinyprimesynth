@@ -13,13 +13,11 @@ set(CMAKE_CXX_STANDARD_REQUIRED True)
 
 add_executable(
   tpsplayer
-  tpsplayer-sapp.cc
+  tpsplayer.cc
 )
 
 # sokol_app/sokol_audio linked libraries
-if (WIN32 OR MINGW)
-  target_link_libraries(tpsplayer winmm kernel32)
-elseif (CMAKE_HOST_LINUX)
+if (CMAKE_HOST_LINUX)
   target_link_libraries(tpsplayer asound)
 endif()
 

@@ -28,6 +28,8 @@ static void stream_cb(float *buffer, int num_frames, int num_channels) {
 		if (midi_synth->at_end())
 			midi_synth->rewind();
 	}
+	else
+		memset(buffer, 0, num_frames * num_channels * sizeof(float));
 }
 
 static void print_help() {
