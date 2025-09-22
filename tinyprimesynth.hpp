@@ -546,6 +546,7 @@ struct VersionTag {
 	uint16_t minor;
 };
 
+#pragma pack(push, 1)
 struct PresetHeader {
 	char preset_name[20];
 	uint16_t preset;
@@ -588,7 +589,9 @@ struct SF2Sample {
 	int8_t original_key;
 	int8_t correction;
 	uint16_t sample_link;
+	uint16_t sample_type;
 };
+#pragma pack(pop)
 class Envelope {
 public:
 	enum class Phase {
@@ -1361,6 +1364,12 @@ public:
 		}
 	}
 
+	~SoundFont() {
+		for (const Preset *preset : presets) {
+			delete preset;
+		}
+	}
+
 	inline const std::vector<Sample> &get_samples() const {
 		return samples;
 	}
@@ -1454,16 +1463,16 @@ private:
 	}
 
 	template <typename T>
-	void read_pdta_list(FileAndMemReader *p_file, std::vector<T> &p_list, uint32_t p_total_size, size_t p_struct_size,
-			Synthesizer *p_synth) {
-		if (p_total_size % p_struct_size != 0) {
+	void read_pdta_list(FileAndMemReader *p_file, std::vector<T> &p_list, uint32_t p_total_size, Synthesizer *p_synth) {
+		if (p_total_size % sizeof(T) != 0) {
 			printf("invalid chunk size");
 			p_synth->set_load_error(true);
 			return;
 		}
-		p_list.resize(p_total_size / p_struct_size);
-		for (size_t i = 0; i < p_total_size / p_struct_size; ++i) {
-			p_file->read((char *)&p_list[i], 1, p_struct_size);
+		size_t num_members = p_total_size / sizeof(T);
+		p_list.resize(num_members);
+		for (size_t i = 0; i < num_members; ++i) {
+			p_file->read((char *)&p_list[i], 1, sizeof(T));
 		}
 	}
 
@@ -1480,31 +1489,31 @@ private:
 			s += sizeof(subchunk_header) + subchunk_header.size;
 			switch (subchunk_header.id) {
 				case to_four_cc("phdr"):
-					read_pdta_list(p_file, phdr, subchunk_header.size, 38, p_synth);
+					read_pdta_list(p_file, phdr, subchunk_header.size, p_synth);
 					break;
 				case to_four_cc("pbag"):
-					read_pdta_list(p_file, pbag, subchunk_header.size, 4, p_synth);
+					read_pdta_list(p_file, pbag, subchunk_header.size, p_synth);
 					break;
 				case to_four_cc("pmod"):
 					read_mod_list(p_file, pmod, subchunk_header.size, p_synth);
 					break;
 				case to_four_cc("pgen"):
-					read_pdta_list(p_file, pgen, subchunk_header.size, 4, p_synth);
+					read_pdta_list(p_file, pgen, subchunk_header.size, p_synth);
 					break;
 				case to_four_cc("inst"):
-					read_pdta_list(p_file, inst, subchunk_header.size, 22, p_synth);
+					read_pdta_list(p_file, inst, subchunk_header.size, p_synth);
 					break;
 				case to_four_cc("ibag"):
-					read_pdta_list(p_file, ibag, subchunk_header.size, 4, p_synth);
+					read_pdta_list(p_file, ibag, subchunk_header.size, p_synth);
 					break;
 				case to_four_cc("imod"):
 					read_mod_list(p_file, imod, subchunk_header.size, p_synth);
 					break;
 				case to_four_cc("igen"):
-					read_pdta_list(p_file, igen, subchunk_header.size, 4, p_synth);
+					read_pdta_list(p_file, igen, subchunk_header.size, p_synth);
 					break;
 				case to_four_cc("shdr"):
-					read_pdta_list(p_file, shdr, subchunk_header.size, 46, p_synth);
+					read_pdta_list(p_file, shdr, subchunk_header.size, p_synth);
 					break;
 				default:
 					p_file->seek(subchunk_header.size, SEEK_CUR);
