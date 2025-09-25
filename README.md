@@ -14,7 +14,8 @@ It integrates the PrimeSynth (https://github.com/mosmeh/primesynth) and BW_Midi_
   - More forgiving of soundfonts that are missing various presets but are otherwise correctly formed (i.e., no piano or drums)
 
 - Differences from upstream BW_Midi_Sequencer:
-  - Support for IMF, CMF, DMX MUS and XMI song formats removed
+  - DMX MUS conversion routines replace with zlib-licensed implementation by Steve Clark (https://github.com/fawtytoo/Mus2Midi)
+  - Support for IMF, CMF and XMI song formats removed
   - "Real time interface" context removed
   - Support for raw OPL events/playback removed
   - No collection or display of song metadata

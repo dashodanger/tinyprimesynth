@@ -22,14 +22,14 @@ static size_t midi_voices = 64;
 // stream callback, called by sokol_audio when new samples are needed,
 // on most platforms, this runs on a separate thread
 static void stream_cb(float *buffer, int num_frames, int num_channels) {
-	if (midi_playing)
-	{
+	if (midi_playing) {
 		midi_synth->play_stream((uint8_t *)buffer, num_frames * num_channels * sizeof(float));
-		if (midi_synth->at_end())
+		if (midi_synth->at_end()) {
 			midi_synth->rewind();
-	}
-	else
+		}
+	} else {
 		memset(buffer, 0, num_frames * num_channels * sizeof(float));
+	}
 }
 
 static void print_help() {
@@ -40,6 +40,7 @@ static void print_help() {
 		   "\n"
 		   "Supported song formats:\n"
 		   "- MIDI\n"
+		   "- MUS (DMX/Doom format)\n"
 		   "- MUS (Electronic Arts)\n"
 		   "- RMI\n"
 		   "- GMF\n"
@@ -142,7 +143,7 @@ int main(int argc, char *argv[]) {
 
 	printf("Playing %s....press enter to exit\n", sargs_value("song"));
 	fflush(stdout);
-  	getchar();
+	getchar();
 
 	midi_playing = false;
 	delete midi_synth;

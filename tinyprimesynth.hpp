@@ -3,19 +3,20 @@
 //------------------------------------------------------------------------------------------------
 //
 // Copyright (c) 2025 dashodanger
+// Copyright (c) 2021-2022 Steve Clark (original Mus2Midi implementation)
 // Copyright (C) 2015-2025 Vitaly Novichkov "Wohlstand" (original BW_Midi_Sequencer implementation)
 // Copyright (c) 2018 mosm (original PrimeSynth implementation)
-// 
+//
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
 // in the Software without restriction, including without limitation the rights
 // to use, copy, modify, merge, publish, distribute, sublicense, and/or sell
 // copies of the Software, and to permit persons to whom the Software is
 // furnished to do so, subject to the following conditions:
-// 
+//
 // The above copyright notice and this permission notice shall be included in all
 // copies or substantial portions of the Software.
-// 
+//
 // THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
 // IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
 // FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
@@ -44,12 +45,13 @@ public:
 	bool eof() const;
 	const std::string &file_name() const;
 	int get_character();
-	void close();
+	void close(bool p_free_memory = false);
 	size_t file_size();
 	size_t read(void *p_buf, size_t p_num, size_t p_size);
 	void seek(long p_pos, int p_rel_to);
 	void open_file(const char *p_path);
 	void open_data(const void *p_mem, size_t p_length);
+	const void *get_data() const;
 
 private:
 	std::string filename;
@@ -115,175 +117,10 @@ private:
 #endif
 namespace tinyprimesynth {
 
-FileAndMemReader::FileAndMemReader() :
-		fp(NULL),
-		mp(NULL),
-		mp_size(0),
-		mp_tell(0) {}
-
-FileAndMemReader::~FileAndMemReader() {
-	close();
-}
-
-void FileAndMemReader::seeku(uint64_t p_pos, int p_rel_to) {
-	this->seek((long)p_pos, p_rel_to);
-}
-
-bool FileAndMemReader::is_valid() const {
-	return (fp) || (mp);
-}
-
-size_t FileAndMemReader::tell() const {
-	if (!this->is_valid()) {
-		return 0;
-	}
-	if (fp) { //If a file
-		return (size_t)ftell(fp);
-	} else { //If a memory block
-		return mp_tell;
-	}
-}
-
-bool FileAndMemReader::eof() const {
-	if (!this->is_valid()) {
-		return true;
-	}
-	if (fp) {
-		return (feof(fp) != 0);
-	} else {
-		return mp_tell >= mp_size;
-	}
-}
-
-const std::string &FileAndMemReader::file_name() const {
-	return filename;
-}
-
-void FileAndMemReader::open_file(const char *p_path) {
-	if (fp) {
-		this->close(); //Close previously opened file first!
-	}
-#if !defined(_WIN32)
-	fp = fopen(p_path, "rb");
-#else
-	wchar_t widePath[MAX_PATH];
-	int size = MultiByteToWideChar(CP_UTF8, 0, p_path, (int)strlen(p_path), widePath, MAX_PATH);
-	widePath[size] = '\0';
-	fp = _wfopen(widePath, L"rb");
-#endif
-	filename = p_path;
-	mp = NULL;
-	mp_size = 0;
-	mp_tell = 0;
-}
-
-void FileAndMemReader::open_data(const void *p_mem, size_t p_length) {
-	if (fp) {
-		this->close(); //Close previously opened file first!
-	}
-	fp = NULL;
-	mp = p_mem;
-	mp_size = p_length;
-	mp_tell = 0;
-}
-
-void FileAndMemReader::seek(long p_pos, int p_rel_to) {
-	if (!this->is_valid()) {
-		return;
-	}
-
-	if (fp) //If a file
-	{
-		fseek(fp, p_pos, p_rel_to);
-	} else //If a memory block
-	{
-		switch (p_rel_to) {
-			default:
-			case SEEK_SET:
-				mp_tell = (size_t)p_pos;
-				break;
-
-			case SEEK_END:
-				mp_tell = mp_size - (size_t)p_pos;
-				break;
-
-			case SEEK_CUR:
-				mp_tell = mp_tell + (size_t)p_pos;
-				break;
-		}
-
-		if (mp_tell > mp_size) {
-			mp_tell = mp_size;
-		}
-	}
-}
-
-size_t FileAndMemReader::read(void *p_buf, size_t p_num, size_t p_size) {
-	if (!this->is_valid()) {
-		return 0;
-	}
-	if (fp) {
-		return fread(p_buf, p_num, p_size, fp);
-	} else {
-		size_t pos = 0;
-		size_t maxSize = (size_t)p_size * p_num;
-
-		while ((pos < maxSize) && (mp_tell < mp_size)) {
-			uint8_t *dest = (uint8_t *)p_buf;
-			const uint8_t *src = (const uint8_t *)mp;
-			dest[pos] = src[mp_tell];
-			mp_tell++;
-			pos++;
-		}
-
-		return pos / p_num;
-	}
-}
-
-int FileAndMemReader::get_character() {
-	if (!this->is_valid()) {
-		return -1;
-	}
-	if (fp) //If a file
-	{
-		return getc(fp);
-	} else //If a memory block
-	{
-		if (mp_tell >= mp_size) {
-			return -1;
-		}
-		const uint8_t *block = (const uint8_t *)mp;
-		int x = block[mp_tell];
-		mp_tell++;
-		return x;
-	}
-}
-
-void FileAndMemReader::close() {
-	if (fp) {
-		fclose(fp);
-	}
-
-	fp = NULL;
-	mp = NULL;
-	mp_size = 0;
-	mp_tell = 0;
-}
-
-size_t FileAndMemReader::file_size() {
-	if (!this->is_valid()) {
-		return 0;
-	}
-	if (!fp) {
-		return mp_size; //Size of memory block is well known
-	}
-	size_t old_pos = this->tell();
-	seek(0l, SEEK_END);
-	size_t file_size = this->tell();
-	seek((long)old_pos, SEEK_SET);
-	return file_size;
-}
-
+static constexpr char MUS_MAGIC[4] = { 'M', 'U', 'S', 0x1a };
+static constexpr char MID_MAGIC[4] = { 'M', 'T', 'h', 'd' };
+static constexpr char TRACK_MAGIC[4] = { 'M', 'T', 'r', 'k' };
+static constexpr int MUS_CONTROLLER_MAP[16] = { -1, 0, 1, 7, 10, 11, 91, 93, 64, 67, 120, 123, 126, 127, 121, -1 };
 static constexpr size_t MIDI_PARSE_HEADER_SIZE = 14;
 static constexpr uint8_t PERCUSSION_CHANNEL = 9;
 static constexpr uint8_t MAX_KEY = 127;
@@ -313,6 +150,13 @@ static constexpr uint16_t ATTEN_TABLE_SIZE = 1441;
 static constexpr uint16_t CENT_TABLE_SIZE = 1200;
 static float attenuation_to_amp_table[ATTEN_TABLE_SIZE];
 static float cent_to_hertz_table[CENT_TABLE_SIZE];
+static uint8_t *mus_to_midi_data = NULL;
+static int mus_to_midi_size;
+static uint8_t *mus_to_midi_pos = NULL;
+static int mus_to_midi_eot;
+static uint8_t mus_to_midi_delta_bytes[4];
+static int mus_to_midi_delta_count;
+static uint8_t mus_to_midi_channels[16];
 
 enum class SF2Generator : uint16_t {
 	START_ADDRESS_OFFSET = 0,
@@ -409,6 +253,22 @@ enum class Transform : uint16_t {
 	LINEAR = 0,
 	ABSOLUTE_VALUE = 2
 };
+
+#pragma pack(push, 1)
+struct MUSHeader {
+	char id[4];
+	uint16_t score_length;
+	uint16_t score_start;
+};
+
+struct MIDHeader {
+	char id[4];
+	int length;
+	uint16_t type;
+	uint16_t ntracks;
+	uint16_t ticks;
+};
+#pragma pack(pop)
 
 static inline uint64_t read_int_big_endian(const void *p_buffer, size_t p_nbytes) {
 	uint64_t result = 0;
@@ -515,6 +375,347 @@ static inline float convex_curve(float p_x) {
 	}
 }
 
+static void mus_event_convert() {
+	uint8_t data, last, channel;
+	uint8_t event[3];
+	int count;
+
+	data = *mus_to_midi_pos++;
+	last = data & 0x80;
+	channel = data & 0xf;
+
+	switch (data & 0x70) {
+		case 0x00:
+			event[0] = 0x80;
+			event[1] = *mus_to_midi_pos++ & 0x7f;
+			event[2] = mus_to_midi_channels[channel];
+			count = 3;
+			break;
+
+		case 0x10:
+			event[0] = 0x90;
+			data = *mus_to_midi_pos++;
+			event[1] = data & 0x7f;
+			event[2] = data & 0x80 ? *mus_to_midi_pos++ : mus_to_midi_channels[channel];
+			mus_to_midi_channels[channel] = event[2];
+			count = 3;
+			break;
+
+		case 0x20:
+			event[0] = 0xe0;
+			event[1] = (*mus_to_midi_pos & 0x01) << 6;
+			event[2] = *mus_to_midi_pos++ >> 1;
+			count = 3;
+			break;
+
+		case 0x30:
+			event[0] = 0xb0;
+			event[1] = MUS_CONTROLLER_MAP[*mus_to_midi_pos++ & 0xf];
+			event[2] = 0x7f;
+			count = 3;
+			break;
+
+		case 0x40:
+			data = *mus_to_midi_pos++;
+			if (data == 0) {
+				event[0] = 0xc0;
+				event[1] = *mus_to_midi_pos++;
+				count = 2;
+				break;
+			}
+			event[0] = 0xb0;
+			event[1] = MUS_CONTROLLER_MAP[data & 0xf];
+			event[2] = *mus_to_midi_pos++;
+			count = 3;
+			break;
+
+		case 0x50:
+			return;
+
+		case 0x60:
+			event[0] = 0xff;
+			event[1] = 0x2f;
+			event[2] = 0x00;
+			count = 3;
+
+			// this prevents mus_to_midi_delta_bytes being read past the end of the MUS data
+			last = 0;
+
+			mus_to_midi_eot = 1;
+			break;
+
+		case 0x70:
+			mus_to_midi_pos++;
+			return;
+	}
+
+	if (channel == 9) {
+		channel = 15;
+	} else if (channel == 15) {
+		channel = 9;
+	}
+
+	event[0] |= channel;
+
+	mus_to_midi_data = (uint8_t *)realloc(mus_to_midi_data, mus_to_midi_size + mus_to_midi_delta_count + count);
+
+	memcpy(mus_to_midi_data + mus_to_midi_size, &mus_to_midi_delta_bytes, mus_to_midi_delta_count);
+	mus_to_midi_size += mus_to_midi_delta_count;
+	memcpy(mus_to_midi_data + mus_to_midi_size, &event, count);
+	mus_to_midi_size += count;
+
+	if (last) {
+		mus_to_midi_delta_count = 0;
+		do {
+			data = *mus_to_midi_pos++;
+			mus_to_midi_delta_bytes[mus_to_midi_delta_count] = data;
+			mus_to_midi_delta_count++;
+		} while (data & 128);
+	} else {
+		mus_to_midi_delta_bytes[0] = 0;
+		mus_to_midi_delta_count = 1;
+	}
+}
+
+static FileAndMemReader *mus_to_midi(FileAndMemReader *p_fmr) {
+	MUSHeader *mus_header = (MUSHeader *)p_fmr->get_data();
+	MIDHeader mid_header;
+	int mid_track_length_offset;
+	int converted_track_length;
+	int i;
+
+	if (strncmp(mus_header->id, MUS_MAGIC, 4) != 0) {
+		return nullptr;
+	}
+
+	if (p_fmr->file_size() != mus_header->score_start + mus_header->score_length) {
+		return nullptr;
+	}
+
+	mus_to_midi_size = sizeof(MIDHeader);
+	memcpy(mid_header.id, MID_MAGIC, 4);
+#ifdef _MSC_VER
+	mid_header.length = _byteswap_ulong(6);
+	mid_header.type = _byteswap_ushort(0);
+	mid_header.ntracks = _byteswap_ushort(1);
+	mid_header.ticks = _byteswap_ushort(70);
+#else
+	mid_header.length = __builtin_bswap32(6);
+	mid_header.type = __builtin_bswap16(0);
+	mid_header.ntracks = __builtin_bswap16(1);
+	mid_header.ticks = __builtin_bswap16(70);
+#endif
+	mus_to_midi_data = (uint8_t *)malloc(mus_to_midi_size);
+	memcpy(mus_to_midi_data, &mid_header, mus_to_midi_size);
+
+	mus_to_midi_data = (uint8_t *)realloc(mus_to_midi_data, mus_to_midi_size + 8);
+	memcpy(mus_to_midi_data + mus_to_midi_size, TRACK_MAGIC, 4);
+	mus_to_midi_size += 4;
+	mid_track_length_offset = mus_to_midi_size;
+	mus_to_midi_size += 4;
+
+	converted_track_length = 0;
+
+	mus_to_midi_pos = (uint8_t *)p_fmr->get_data() + mus_header->score_start;
+	mus_to_midi_eot = 0;
+	mus_to_midi_delta_bytes[0] = 0;
+	mus_to_midi_delta_count = 1;
+
+	for (i = 0; i < 16; i++) {
+		mus_to_midi_channels[i] = 0;
+	}
+
+	while (!mus_to_midi_eot) {
+		mus_event_convert();
+	}
+#ifdef _MSC_VER
+	converted_track_length = _byteswap_ulong(mus_to_midi_size - sizeof(MIDHeader) - 8);
+#else
+	converted_track_length = __builtin_bswap32(mus_to_midi_size - sizeof(MIDHeader) - 8);
+#endif
+	memcpy(mus_to_midi_data + mid_track_length_offset, &converted_track_length, 4);
+
+	FileAndMemReader *converted = new FileAndMemReader;
+	converted->open_data(mus_to_midi_data, mus_to_midi_size);
+
+	return converted;
+}
+
+FileAndMemReader::FileAndMemReader() :
+		fp(NULL),
+		mp(NULL),
+		mp_size(0),
+		mp_tell(0) {}
+
+FileAndMemReader::~FileAndMemReader() {
+	close();
+}
+
+void FileAndMemReader::seeku(uint64_t p_pos, int p_rel_to) {
+	this->seek((long)p_pos, p_rel_to);
+}
+
+bool FileAndMemReader::is_valid() const {
+	return (fp) || (mp);
+}
+
+size_t FileAndMemReader::tell() const {
+	if (!this->is_valid()) {
+		return 0;
+	}
+	if (fp) { //If a file
+		return (size_t)ftell(fp);
+	} else { //If a memory block
+		return mp_tell;
+	}
+}
+
+bool FileAndMemReader::eof() const {
+	if (!this->is_valid()) {
+		return true;
+	}
+	if (fp) {
+		return (feof(fp) != 0);
+	} else {
+		return mp_tell >= mp_size;
+	}
+}
+
+const std::string &FileAndMemReader::file_name() const {
+	return filename;
+}
+
+void FileAndMemReader::open_file(const char *p_path) {
+	if (fp) {
+		this->close(); //Close previously opened file first!
+	}
+#if !defined(_WIN32)
+	fp = fopen(p_path, "rb");
+#else
+	wchar_t widePath[MAX_PATH];
+	int size = MultiByteToWideChar(CP_UTF8, 0, p_path, (int)strlen(p_path), widePath, MAX_PATH);
+	widePath[size] = '\0';
+	fp = _wfopen(widePath, L"rb");
+#endif
+	filename = p_path;
+	mp = NULL;
+	mp_size = 0;
+	mp_tell = 0;
+}
+
+void FileAndMemReader::open_data(const void *p_mem, size_t p_length) {
+	if (fp) {
+		this->close(); //Close previously opened file first!
+	}
+	fp = NULL;
+	mp = p_mem;
+	mp_size = p_length;
+	mp_tell = 0;
+}
+
+const void *FileAndMemReader::get_data() const {
+	return mp;
+}
+
+void FileAndMemReader::seek(long p_pos, int p_rel_to) {
+	if (!this->is_valid()) {
+		return;
+	}
+
+	if (fp) //If a file
+	{
+		fseek(fp, p_pos, p_rel_to);
+	} else //If a memory block
+	{
+		switch (p_rel_to) {
+			default:
+			case SEEK_SET:
+				mp_tell = (size_t)p_pos;
+				break;
+
+			case SEEK_END:
+				mp_tell = mp_size - (size_t)p_pos;
+				break;
+
+			case SEEK_CUR:
+				mp_tell = mp_tell + (size_t)p_pos;
+				break;
+		}
+
+		if (mp_tell > mp_size) {
+			mp_tell = mp_size;
+		}
+	}
+}
+
+size_t FileAndMemReader::read(void *p_buf, size_t p_num, size_t p_size) {
+	if (!this->is_valid()) {
+		return 0;
+	}
+	if (fp) {
+		return fread(p_buf, p_num, p_size, fp);
+	} else {
+		size_t pos = 0;
+		size_t maxSize = (size_t)p_size * p_num;
+
+		while ((pos < maxSize) && (mp_tell < mp_size)) {
+			uint8_t *dest = (uint8_t *)p_buf;
+			const uint8_t *src = (const uint8_t *)mp;
+			dest[pos] = src[mp_tell];
+			mp_tell++;
+			pos++;
+		}
+
+		return pos / p_num;
+	}
+}
+
+int FileAndMemReader::get_character() {
+	if (!this->is_valid()) {
+		return -1;
+	}
+	if (fp) //If a file
+	{
+		return getc(fp);
+	} else //If a memory block
+	{
+		if (mp_tell >= mp_size) {
+			return -1;
+		}
+		const uint8_t *block = (const uint8_t *)mp;
+		int x = block[mp_tell];
+		mp_tell++;
+		return x;
+	}
+}
+
+void FileAndMemReader::close(bool p_free_memory) {
+	if (fp) {
+		fclose(fp);
+	}
+	fp = NULL;
+	if (mp && p_free_memory) {
+		void *free_me = (void *)mp;
+		free(free_me);
+	}
+	mp = NULL;
+	mp_size = 0;
+	mp_tell = 0;
+}
+
+size_t FileAndMemReader::file_size() {
+	if (!this->is_valid()) {
+		return 0;
+	}
+	if (!fp) {
+		return mp_size; //Size of memory block is well known
+	}
+	size_t old_pos = this->tell();
+	seek(0l, SEEK_END);
+	size_t file_size = this->tell();
+	seek((long)old_pos, SEEK_SET);
+	return file_size;
+}
 struct SF2Modulator {
 	union {
 		GeneralController general;
@@ -4001,6 +4202,40 @@ public:
 			p_mfr->seek(0, SEEK_SET);
 			return parse_rsxx(p_mfr);
 		}
+		if (memcmp(header_buf, "MUS\x1A", 4) == 0) {
+			// need to convert prior to parsing
+			p_mfr->seek(0, SEEK_SET);
+			FileAndMemReader *temp = nullptr;
+			FileAndMemReader *converted = nullptr;
+			if (!p_mfr->get_data()) // need to load to memory first
+			{
+				size_t raw_size = p_mfr->file_size();
+				uint8_t *raw = (uint8_t *)malloc(raw_size);
+				p_mfr->read(raw, 1, p_mfr->file_size());
+				temp = new FileAndMemReader;
+				temp->open_data(raw, raw_size);
+			}
+			if (temp) {
+				converted = mus_to_midi(temp);
+			} else {
+				converted = mus_to_midi(p_mfr);
+			}
+			if (!converted) {
+				if (temp) {
+					temp->close(true);
+					delete temp;
+				}
+				return false;
+			}
+			bool result = parse_smf(converted);
+			if (temp) {
+				temp->close(true);
+				delete temp;
+			}
+			converted->close(true);
+			delete converted;
+			return result;
+		}
 
 		return false;
 	}
@@ -4243,7 +4478,7 @@ private:
 			size_t track_length;
 
 			fsize = p_mfr->read(header_buf, 1, 8);
-			if ((fsize < 8) || (memcmp(header_buf, "MTrk", 4) != 0)) {
+			if ((fsize < 8) || (memcmp(header_buf, TRACK_MAGIC, 4) != 0)) {
 				return false;
 			}
 			track_length = (size_t)read_int_big_endian(header_buf + 4, 4);
