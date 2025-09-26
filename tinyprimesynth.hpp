@@ -5,6 +5,9 @@
 // Copyright (c) 2025 dashodanger
 // Copyright (c) 2015-2025 Vitaly Novichkov "Wohlstand" (original BW_Midi_Sequencer implementation)
 // Copyright (c) 2018 mosm (original PrimeSynth implementation)
+// Copyright (c) 2017 Project Nayuki.(Original FLAC decoder implementation)
+//                    https://www.nayuki.io/page/simple-flac-implementation)
+//
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
 // of this software and associated documentation files (the "Software"), to deal
@@ -119,6 +122,7 @@ namespace tinyprimesynth {
 static constexpr char MUS_MAGIC[4] = { 'M', 'U', 'S', 0x1a };
 static constexpr char MID_MAGIC[4] = { 'M', 'T', 'h', 'd' };
 static constexpr char TRACK_MAGIC[4] = { 'M', 'T', 'r', 'k' };
+static constexpr char FLAC_MAGIC[4] = { 'f', 'L', 'a', 'C' };
 static constexpr int MUS_CONTROLLER_MAP[16] = { -1, 0, 1, 7, 10, 11, 91, 93, 64, 67, 120, 123, 126, 127, 121, -1 };
 static constexpr size_t MIDI_PARSE_HEADER_SIZE = 14;
 static constexpr uint8_t PERCUSSION_CHANNEL = 9;
@@ -286,6 +290,112 @@ struct MIDHeader {
 	uint16_t ticks;
 };
 #pragma pack(pop)
+
+#if defined(__GNUC__) || defined(__clang__)
+static inline uint16_t byte_swap_16(uint16_t n)
+{
+    return __builtin_bswap16(n);
+}
+static inline uint32_t byte_swap_32(uint32_t n)
+{
+    return __builtin_bswap32(n);
+}
+#elif defined(_MSC_VER)
+static inline uint16_t byte_swap_16(uint16_t n)
+{
+    return _byteswap_ushort(n);
+}
+static inline uint32_t byte_swap_32(uint32_t n)
+{
+    return _byteswap_ulong(n);
+}
+#else
+static inline uint16_t byte_swap_16(uint16_t n)
+{
+    uint16_t a;
+    a = (n & 0xFF) << 8;
+    a |= (n >> 8) & 0xFF;
+    return a;
+}
+static inline uint32_t byte_swap_32(uint32_t n)
+{
+    uint32_t a;
+    a = (n & 0xFFU) << 24;
+    a |= (n & 0xFF00U) << 8;
+    a |= (n >> 8) & 0xFF00U;
+    a |= (n >> 24) & 0xFFU;
+    return a;
+}
+#endif
+
+#if defined(__GNUC__) || defined(__clang__)
+inline uint32_t count_leading_zeroes(uint32_t p_x) {
+	return __builtin_clz(p_x);
+}
+#elif defined(_MSC_VER)
+inline uint32_t count_leading_zeroes(uint32_t value) {
+  uint32_t leading_zero = 0;
+  if (_BitScanReverse(&leading_zero, value))
+    return 31 - leading_zero;
+  else
+    return 32;
+}
+#else
+static inline uint32_t count_leading_zeroes(uint32_t x) {
+    static constexpr uint8_t const clz_lkup[] = {
+        32U, 31U, 30U, 30U, 29U, 29U, 29U, 29U,
+        28U, 28U, 28U, 28U, 28U, 28U, 28U, 28U,
+        27U, 27U, 27U, 27U, 27U, 27U, 27U, 27U,
+        27U, 27U, 27U, 27U, 27U, 27U, 27U, 27U,
+        26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
+        26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
+        26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
+        26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
+        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U
+    };
+    uint32_t n;
+    if (x >= (1U << 16)) {
+        if (x >= (1U << 24)) {
+            n = 24U;
+        }
+        else {
+            n = 16U;
+        }
+    }
+    else {
+        if (x >= (1U << 8)) {
+            n = 8U;
+        }
+        else {
+            n = 0U;
+        }
+    }
+    return (uint32_t)clz_lkup[x >> n] - n;
+}
+#endif
 
 static inline uint64_t read_int_big_endian(const void *p_buffer, size_t p_nbytes) {
 	uint64_t result = 0;
@@ -691,17 +801,10 @@ static FileAndMemReader *mus_to_midi(FileAndMemReader *p_fmr) {
 
 	mus_to_midi_size = sizeof(MIDHeader);
 	memcpy(mid_header.id, MID_MAGIC, 4);
-#ifdef _MSC_VER
-	mid_header.length = _byteswap_ulong(6);
-	mid_header.type = _byteswap_ushort(0);
-	mid_header.ntracks = _byteswap_ushort(1);
-	mid_header.ticks = _byteswap_ushort(70);
-#else
-	mid_header.length = __builtin_bswap32(6);
-	mid_header.type = __builtin_bswap16(0);
-	mid_header.ntracks = __builtin_bswap16(1);
-	mid_header.ticks = __builtin_bswap16(70);
-#endif
+	mid_header.length = byte_swap_32(6);
+	mid_header.type = byte_swap_16(0);
+	mid_header.ntracks = byte_swap_16(1);
+	mid_header.ticks = byte_swap_16(70);
 	mus_to_midi_data = (uint8_t *)malloc(mus_to_midi_size);
 	memcpy(mus_to_midi_data, &mid_header, mus_to_midi_size);
 
@@ -725,11 +828,7 @@ static FileAndMemReader *mus_to_midi(FileAndMemReader *p_fmr) {
 	while (!mus_to_midi_eot) {
 		mus_event_convert();
 	}
-#ifdef _MSC_VER
-	converted_track_length = _byteswap_ulong(mus_to_midi_size - sizeof(MIDHeader) - 8);
-#else
-	converted_track_length = __builtin_bswap32(mus_to_midi_size - sizeof(MIDHeader) - 8);
-#endif
+	converted_track_length = byte_swap_32(mus_to_midi_size - sizeof(MIDHeader) - 8);
 	memcpy(mus_to_midi_data + mid_track_length_offset, &converted_track_length, 4);
 
 	FileAndMemReader *converted = new FileAndMemReader;
@@ -2623,6 +2722,349 @@ private:
 	}
 };
 
+class FLACBitStream {
+
+  public:
+	FLACBitStream(FileAndMemReader *p_in) : raw_stream(p_in), bit_buffer(0), bit_buffer_length(0), stream_error(false) {}
+		
+	inline void alignToByte() {
+		bit_buffer_length -= bit_buffer_length % 8;
+	}
+	
+	inline int32_t readOne() {
+		if (raw_stream->eof())
+			return -1;
+		else
+		{
+			uint8_t ret;
+			raw_stream->read(&ret, 1, 1);
+			return ret;
+		}
+	}
+
+	int32_t readByte() {
+		if (bit_buffer_length >= 8)
+			return readUint(8);
+		else
+			return readOne();
+	}
+	
+	int32_t readUint(int32_t p_n) {
+		while (bit_buffer_length < p_n) {
+			int32_t temp = readOne();
+			bit_buffer = (bit_buffer << 8) | temp;
+			bit_buffer_length += 8;
+		}
+		bit_buffer_length -= p_n;
+		int32_t result = (int32_t)(bit_buffer >> bit_buffer_length);
+		if (p_n < 32)
+			result &= (1 << p_n) - 1;
+		return result;
+	}
+	
+	int32_t readSignedInt(int32_t p_n) {
+		return (readUint(p_n) << (32 - p_n)) >> (32 - p_n);
+	}
+	
+	int64_t readRiceSignedInt(int32_t p_param) {
+		int64_t val = 0;
+		while (readUint(1) == 0)
+			val++;
+		val = (val << p_param) | readUint(p_param);
+		return (val >> 1) ^ -(val & 1);
+	}
+
+	inline bool get_stream_error() const {
+		return stream_error;
+	}
+
+	inline void set_stream_error(bool p_error) {
+		stream_error = p_error;
+	}
+
+	inline bool stream_at_end() const {
+		return raw_stream->eof();
+	}
+
+  private:
+	FileAndMemReader *raw_stream;
+	int64_t bit_buffer;
+	int32_t bit_buffer_length;
+	bool    stream_error;
+};
+
+static const std::vector<int32_t> FIXED_PREDICTION_COEFFICIENTS[5] = {
+	{},
+	{1},
+	{2, -1},
+	{3, -3, 1},
+	{4, -6, 4, -1},
+};
+
+static void writeLittleInt(int32_t numBytes, int32_t val, std::vector<uint8_t> &out) {
+	for (int32_t i = 0; i < numBytes; i++)
+		out.push_back((uint8_t)(val >> (i * 8)));
+}
+
+static void restoreLinearPrediction(std::vector<int64_t> &result, const std::vector<int32_t> &coefs, int32_t shift) {
+	for (int32_t i = coefs.size(); i < result.size(); i++) {
+		int64_t sum = 0;
+		for (int32_t j = 0; j < coefs.size(); j++)
+			sum += result[i - 1 - j] * coefs[j];
+		result[i] += sum >> shift;
+	}
+}
+
+static void decodeResiduals(FLACBitStream &in, int32_t warmup, std::vector<int64_t> &result) {
+	int32_t method = in.readUint(2);
+	if (method >= 2)
+	{
+		// Reserved residual coding method
+		in.set_stream_error(true);
+		return;
+	}
+	int32_t paramBits = method == 0 ? 4 : 5;
+	int32_t escapeParam = method == 0 ? 0xF : 0x1F;
+	
+	int32_t partitionOrder = in.readUint(4);
+	int32_t numPartitions = 1 << partitionOrder;
+	if (result.size() % numPartitions != 0)
+	{
+		// Block size not divisible by number of Rice partitions
+		in.set_stream_error(true);
+		return;
+	}
+	int32_t partitionSize = result.size() / numPartitions;
+	
+	for (int32_t i = 0; i < numPartitions; i++) {
+		int32_t start = i * partitionSize + (i == 0 ? warmup : 0);
+		int32_t end = (i + 1) * partitionSize;
+		
+		int32_t param = in.readUint(paramBits);
+		if (param < escapeParam) {
+			for (int32_t j = start; j < end; j++)
+				result[j] = in.readRiceSignedInt(param);
+		} else {
+			int32_t numBits = in.readUint(5);
+			for (int32_t j = start; j < end; j++)
+				result[j] = in.readSignedInt(numBits);
+		}
+	}
+}
+
+static void decodeLinearPredictiveCodingSubframe(FLACBitStream &in, int32_t lpcOrder, int32_t sampleDepth, std::vector<int64_t> &result) {
+	for (int32_t i = 0; i < lpcOrder; i++)
+		result[i] = in.readSignedInt(sampleDepth);
+	int32_t precision = in.readUint(4) + 1;
+	int32_t shift = in.readSignedInt(5);
+	std::vector<int32_t> coefs;
+	coefs.resize(lpcOrder);
+	for (int32_t i = 0; i < coefs.size(); i++)
+		coefs[i] = in.readSignedInt(precision);
+	decodeResiduals(in, lpcOrder, result);
+	restoreLinearPrediction(result, coefs, shift);
+}
+
+static void decodeFixedPredictionSubframe(FLACBitStream &in, int32_t predOrder, int32_t sampleDepth, std::vector<int64_t> &result) {
+	for (int32_t i = 0; i < predOrder; i++)
+		result[i] = in.readSignedInt(sampleDepth);
+	decodeResiduals(in, predOrder, result);
+	restoreLinearPrediction(result, FIXED_PREDICTION_COEFFICIENTS[predOrder], 0);
+}
+
+static void decodeSubframe(FLACBitStream &in, int32_t sampleDepth, std::vector<int64_t> &result) {
+	in.readUint(1);
+	int32_t type = in.readUint(6);
+	int32_t shift = in.readUint(1);
+	if (shift == 1) {
+		while (in.readUint(1) == 0)
+			shift++;
+	}
+	sampleDepth -= shift;
+	
+	if (type == 0)  // Constant coding
+	{
+		int32_t filler = in.readSignedInt(sampleDepth);
+		for (size_t i = 0; i < result.size(); i++)
+			result[i] = filler;
+	}
+	else if (type == 1) {  // Verbatim coding
+		for (int32_t i = 0; i < result.size(); i++)
+			result[i] = in.readSignedInt(sampleDepth);
+	} else if (8 <= type && type <= 12)
+		decodeFixedPredictionSubframe(in, type - 8, sampleDepth, result);
+	else if (32 <= type && type <= 63)
+		decodeLinearPredictiveCodingSubframe(in, type - 31, sampleDepth, result);
+	else
+	{
+		// Reserved subframe type
+		in.set_stream_error(true);
+		return;
+	}
+	
+	for (int32_t i = 0; i < result.size(); i++)
+		result[i] <<= shift;
+}
+
+static void decodeSubframes(FLACBitStream &in, int32_t sampleDepth, int32_t chanAsgn, std::vector<std::vector<int32_t>> &result) {
+	int32_t blockSize = result[0].size();
+	std::vector<std::vector<int64_t>> subframes;
+	subframes.resize(result.size());
+	for (std::vector<int64_t> &block : subframes)
+	{
+		block.resize(blockSize);
+	}
+	if (0 <= chanAsgn && chanAsgn <= 7) {
+		for (int32_t ch = 0; ch < result.size(); ch++)
+			decodeSubframe(in, sampleDepth, subframes[ch]);
+	} else if (8 <= chanAsgn && chanAsgn <= 10) {
+		decodeSubframe(in, sampleDepth + (chanAsgn == 9 ? 1 : 0), subframes[0]);
+		decodeSubframe(in, sampleDepth + (chanAsgn == 9 ? 0 : 1), subframes[1]);
+		if (chanAsgn == 8) {
+			for (int32_t i = 0; i < blockSize; i++)
+				subframes[1][i] = subframes[0][i] - subframes[1][i];
+		} else if (chanAsgn == 9) {
+			for (int32_t i = 0; i < blockSize; i++)
+				subframes[0][i] += subframes[1][i];
+		} else if (chanAsgn == 10) {
+			for (int32_t i = 0; i < blockSize; i++) {
+				int64_t side = subframes[1][i];
+				int64_t right = subframes[0][i] - (side >> 1);
+				subframes[1][i] = right;
+				subframes[0][i] = right + side;
+			}
+		}
+	} else {
+		// Reserved channel assignment
+		in.set_stream_error(true);
+		return;
+	}
+	for (int32_t ch = 0; ch < result.size(); ch++) {
+		for (int32_t i = 0; i < blockSize; i++)
+			result[ch][i] = (int32_t)subframes[ch][i];
+	}
+}
+
+static bool decodeFrame(FLACBitStream &in, int32_t numChannels, int32_t sampleDepth, std::vector<uint8_t> &out) {
+	// Read a ton of header fields, and ignore most of them
+	int32_t temp = in.readByte();
+	if (temp == -1)
+		return false;
+	int32_t sync = temp << 6 | in.readUint(6);
+	if (sync != 0x3FFE)
+	{
+		// not a sync code
+		if (!in.stream_at_end()) // need to see why this is happening at the end consistently :/
+			in.set_stream_error(true);
+		return false;
+	}
+	
+	in.readUint(1);
+	in.readUint(1);
+	int32_t blockSizeCode = in.readUint(4);
+	int32_t sampleRateCode = in.readUint(4);
+	int32_t chanAsgn = in.readUint(4);
+	in.readUint(3);
+	in.readUint(1);
+	
+	temp = count_leading_zeroes(~(in.readUint(8) << 24)) - 1;
+	for (int32_t i = 0; i < temp; i++)
+		in.readUint(8);
+	
+	int32_t blockSize;
+	if (blockSizeCode == 1)
+		blockSize = 192;
+	else if (2 <= blockSizeCode && blockSizeCode <= 5)
+		blockSize = 576 << (blockSizeCode - 2);
+	else if (blockSizeCode == 6)
+		blockSize = in.readUint(8) + 1;
+	else if (blockSizeCode == 7)
+		blockSize = in.readUint(16) + 1;
+	else if (8 <= blockSizeCode && blockSizeCode <= 15)
+		blockSize = 256 << (blockSizeCode - 8);
+	else
+	{
+		// unsupported block size?
+		in.set_stream_error(true);
+		return false;
+	}
+	
+	if (sampleRateCode == 12)
+		in.readUint(8);
+	else if (sampleRateCode == 13 || sampleRateCode == 14)
+		in.readUint(16);
+	
+	in.readUint(8);
+	
+	// Decode each channel's subframe, then skip footer
+	std::vector<std::vector<int32_t>> samples;
+	samples.resize(numChannels);
+	for (std::vector<int32_t> &block : samples)
+	{
+		block.resize(blockSize);
+	}
+	decodeSubframes(in, sampleDepth, chanAsgn, samples);
+	in.alignToByte();
+	in.readUint(16);
+	
+	// Write the decoded samples
+	for (int32_t i = 0; i < blockSize; i++) {
+		for (int32_t j = 0; j < numChannels; j++) {
+			int32_t val = samples[j][i];
+			if (sampleDepth == 8)
+				val += 128;
+			writeLittleInt(sampleDepth / 8, val, out);
+		}
+	}
+	return true;
+}
+
+static std::vector<uint8_t> decodeFile(FLACBitStream &in) {
+	// Handle FLAC header and metadata blocks
+	std::vector<uint8_t> out;	
+	if (in.readUint(32) != 0x664C6143)
+		return out; // Not a FLAC
+	int32_t sampleRate = -1;
+	int32_t numChannels = -1;
+	int32_t sampleDepth = -1;
+	int64_t numSamples = -1;
+	for (bool last = false; !last; ) {
+		last = in.readUint(1) != 0;
+		int32_t type = in.readUint(7);
+		int32_t length = in.readUint(24);
+		if (type == 0) {  // Stream info block
+			in.readUint(16);
+			in.readUint(16);
+			in.readUint(24);
+			in.readUint(24);
+			sampleRate = in.readUint(20);
+			numChannels = in.readUint(3) + 1;
+			sampleDepth = in.readUint(5) + 1;
+			numSamples = (int64_t)in.readUint(18) << 18 | in.readUint(18);
+			for (int32_t i = 0; i < 16; i++)
+				in.readUint(8);
+		} else {
+			for (int32_t i = 0; i < length; i++)
+				in.readUint(8);
+		}
+	}
+	if (sampleRate == -1)
+		return out;
+	if (sampleDepth % 8 != 0)
+		return out;
+
+	// Decode FLAC audio frames and write raw samples
+	while (decodeFrame(in, numChannels, sampleDepth, out))
+	{
+		if (in.get_stream_error())
+			break;
+	}
+
+	if (in.get_stream_error())
+		out.clear();
+
+	return out;
+}
 class Synthesizer::Sequencer {
 	class FixedFraction {
 	public:
@@ -4604,9 +5046,32 @@ bool Synthesizer::load_soundfont(const char *p_filename) {
 		return false;
 	}
 	load_error = false;
-	soundfont = new SoundFont(p_font, this);
-	delete p_font;
-	return !load_error;
+	char flac_check[4];
+	p_font->read(&flac_check, 1, 4);
+	p_font->seek(0, SEEK_SET);
+	if (!memcmp(flac_check, FLAC_MAGIC, 4))
+	{
+		FLACBitStream decoder(p_font);
+		std::vector<uint8_t> decoded = decodeFile(decoder);
+		delete p_font;
+		if (decoded.empty())
+			return false;
+		else
+		{
+			FileAndMemReader *font = new FileAndMemReader;
+			font->open_data(decoded.data(), decoded.size());
+			soundfont = new SoundFont(font, this);
+			decoded.clear();
+			delete font;
+			return !load_error;
+		}
+	}
+	else
+	{
+		soundfont = new SoundFont(p_font, this);
+		delete p_font;
+		return !load_error;
+	}
 }
 
 bool Synthesizer::load_soundfont(const uint8_t *p_data, size_t p_length) {
@@ -4620,9 +5085,32 @@ bool Synthesizer::load_soundfont(const uint8_t *p_data, size_t p_length) {
 		return false;
 	}
 	load_error = false;
-	soundfont = new SoundFont(p_font, this);
-	delete p_font;
-	return !load_error;
+	char flac_check[4];
+	p_font->read(&flac_check, 1, 4);
+	p_font->seek(0, SEEK_SET);
+	if (!memcmp(flac_check, FLAC_MAGIC, 4))
+	{
+		FLACBitStream decoder(p_font);
+		std::vector<uint8_t> decoded = decodeFile(decoder);
+		delete p_font;
+		if (decoded.empty())
+			return false;
+		else
+		{
+			FileAndMemReader *font = new FileAndMemReader;
+			font->open_data(decoded.data(), decoded.size());
+			soundfont = new SoundFont(font, this);
+			decoded.clear();
+			delete font;
+			return !load_error;
+		}
+	}
+	else
+	{
+		soundfont = new SoundFont(p_font, this);
+		delete p_font;
+		return !load_error;
+	}
 }
 
 bool Synthesizer::load_song(const char *p_filename) {
