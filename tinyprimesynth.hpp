@@ -2663,7 +2663,7 @@ inline uint32_t count_leading_zeroes(uint32_t p_x) {
 }
 #elif defined(_MSC_VER)
 inline uint32_t count_leading_zeroes(uint32_t value) {
-	uint32_t leading_zero = 0;
+	unsigned long leading_zero = 0;
 	if (_BitScanReverse(&leading_zero, value)) {
 		return 31 - leading_zero;
 	} else {
