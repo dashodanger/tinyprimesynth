@@ -7,6 +7,7 @@ It integrates the PrimeSynth (https://github.com/mosmeh/primesynth) and BW_Midi_
 
 - Differences from upstream PrimeSynth:
   - Adjustable polyphony
+  - Optional support for FLAC-encoded sf2 soundfonts
   - Works with GCC/Clang compilers in addition to MSVC
   - Platform-agnostic; renders to a buffer instead of attempting to leverage Portaudio to send to a specific device
   - Does not support real-time input from MIDI devices; messages are sent via the internal sequencer
@@ -23,11 +24,13 @@ It integrates the PrimeSynth (https://github.com/mosmeh/primesynth) and BW_Midi_
 ## Compilation
 Define `TINYPRIMESYNTH_IMPLEMENTATION` before including `tinyprimesynth.hpp` in one source file within your project. It can then be included anywhere else that it needs to be referenced.
 
+You may also define `TINYPRIMESYNTH_FLAC_SUPPORT` before `TINYPRIMESYNTH_IMPLEMENTAITON` to enable the internal FLAC decoder. This will allow for SF2FLAC (regular sf2 files which are FLAC-encoded) soundfont support. If you are already using a flac decoder in your program, you can leave this undefined and decode the SF2FLAC soundfont prior to loading into TinyPrimeSynth.
+
 To compile a test program for Windows or Linux, please use the CMakeLists file in the `example` directory. It has a command-line interface whose usage can be shown with the 'help' parameter. You can pass either the bundled song and soundfont, or paths to your own.
 
 If both the soundfont and song are successfully loaded, playback will begin. The song will loop indefinitely. Press enter or issue a break command to exit at any time.
 
-Note that the test program uses the Sokol libraries, which are under the zlib license. It is bundled with `sf_GMbank.sf2` (renamed to `csound.sf2`), a public domain soundfont provided by the CSound project (https://github.com/csound/csound). It is also bundled with the track `ant_farm_melee.mid`, composed by Lee Jackson (https://dleejackson.lbjackson.com/) and used under the CC-BY-SA 4.0 license. None of these licenses affect tinyprimesynth when compiled on its own.
+Note that the test program uses the Sokol libraries, which are under the zlib license. It is bundled with `sf_GMbank.sf2` (encoded and renamed to `csound.sf2flac`), a public domain soundfont provided by the CSound project (https://github.com/csound/csound). It is also bundled with the track `ant_farm_melee.mid`, composed by Lee Jackson (https://dleejackson.lbjackson.com/) and used under the CC-BY-SA 4.0 license. None of these licenses affect tinyprimesynth when compiled on its own.
 
 ## Usage
 - Create a new instance of the Synthesizer class, passing to it your desired output rate.

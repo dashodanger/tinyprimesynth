@@ -1,8 +1,9 @@
 The MIT License (MIT)
 
-Copyright (c) 2025 dashodanger
+Copyright (c) 2025 dashodanger (TinyPrimeSynth)
 Copyright (c) 2015-2025 Vitaly Novichkov "Wohlstand" (original BW_Midi_Sequencer implementation)
 Copyright (c) 2018 mosm (original PrimeSynth implementation)
+Copyright (c) 2017 Andre Weissflog (original player example code)
 Copyright (c) 2017 Project Nayuki.(Original FLAC decoder implementation - 
                                    https://www.nayuki.io/page/simple-flac-implementation)
 Copyright (c) 2014 Miro Samek (portable CLZ fallback implementation)
@@ -28,6 +29,7 @@ SOFTWARE.
 The zlib License (zlib)
 
 Copyright (c) 2021-2022 Steve Clark (original Mus2Midi implementation)
+Copyright (c) 2018 Andre Weissflog (sokol libraries)
 
 This software is provided 'as-is', without any express or implied
 warranty.  In no event will the authors be held liable for any damages
@@ -44,3 +46,21 @@ freely, subject to the following restrictions:
 2. Altered source versions must be plainly marked as such, and must not be
    misrepresented as being the original software.
 3. This notice may not be removed or altered from any source distribution.
+
+The Creative Commons Attribution-ShareAlike 4.0 International License (CC-BY-SA)
+
+Copyright (c) 2021 Lee Jackson (ant_farm_melee.mid)
+
+* Copyright / Permissions *
+
+This work is licensed under the Creative Commons Attribution-ShareAlike 4.0
+International License. To view a copy of this license, visit
+http://creativecommons.org/licenses/by-sa/4.0/
+
+You are free to copy and redistribute the material in any medium or format;
+and remix, transform, and build upon the material for any purpose, even
+commercially. If you do so, you must give appropriate credit, provide a link
+to the license, and indicate if changes were made. You may do so in any
+reasonable manner, but not in any way that suggests the licensor endorses you
+or your use. If you remix, transform, or build upon the material, you must
+distribute your contributions under the same license as the original.

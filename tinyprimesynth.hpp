@@ -7,6 +7,7 @@
 // Copyright (c) 2018 mosm (original PrimeSynth implementation)
 // Copyright (c) 2017 Project Nayuki.(Original FLAC decoder implementation)
 //                    https://www.nayuki.io/page/simple-flac-implementation)
+// Copyright (c) 2014 Miro Samek (portable CLZ fallback implementation)
 //
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -292,108 +293,33 @@ struct MIDHeader {
 #pragma pack(pop)
 
 #if defined(__GNUC__) || defined(__clang__)
-static inline uint16_t byte_swap_16(uint16_t n)
-{
-    return __builtin_bswap16(n);
+static inline uint16_t byte_swap_16(uint16_t n) {
+	return __builtin_bswap16(n);
 }
-static inline uint32_t byte_swap_32(uint32_t n)
-{
-    return __builtin_bswap32(n);
+static inline uint32_t byte_swap_32(uint32_t n) {
+	return __builtin_bswap32(n);
 }
 #elif defined(_MSC_VER)
-static inline uint16_t byte_swap_16(uint16_t n)
-{
-    return _byteswap_ushort(n);
+static inline uint16_t byte_swap_16(uint16_t n) {
+	return _byteswap_ushort(n);
 }
-static inline uint32_t byte_swap_32(uint32_t n)
-{
-    return _byteswap_ulong(n);
+static inline uint32_t byte_swap_32(uint32_t n) {
+	return _byteswap_ulong(n);
 }
 #else
-static inline uint16_t byte_swap_16(uint16_t n)
-{
-    uint16_t a;
-    a = (n & 0xFF) << 8;
-    a |= (n >> 8) & 0xFF;
-    return a;
+static inline uint16_t byte_swap_16(uint16_t n) {
+	uint16_t a;
+	a = (n & 0xFF) << 8;
+	a |= (n >> 8) & 0xFF;
+	return a;
 }
-static inline uint32_t byte_swap_32(uint32_t n)
-{
-    uint32_t a;
-    a = (n & 0xFFU) << 24;
-    a |= (n & 0xFF00U) << 8;
-    a |= (n >> 8) & 0xFF00U;
-    a |= (n >> 24) & 0xFFU;
-    return a;
-}
-#endif
-
-#if defined(__GNUC__) || defined(__clang__)
-inline uint32_t count_leading_zeroes(uint32_t p_x) {
-	return __builtin_clz(p_x);
-}
-#elif defined(_MSC_VER)
-inline uint32_t count_leading_zeroes(uint32_t value) {
-  uint32_t leading_zero = 0;
-  if (_BitScanReverse(&leading_zero, value))
-    return 31 - leading_zero;
-  else
-    return 32;
-}
-#else
-static inline uint32_t count_leading_zeroes(uint32_t x) {
-    static constexpr uint8_t const clz_lkup[] = {
-        32U, 31U, 30U, 30U, 29U, 29U, 29U, 29U,
-        28U, 28U, 28U, 28U, 28U, 28U, 28U, 28U,
-        27U, 27U, 27U, 27U, 27U, 27U, 27U, 27U,
-        27U, 27U, 27U, 27U, 27U, 27U, 27U, 27U,
-        26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
-        26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
-        26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
-        26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
-        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
-        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
-        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
-        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
-        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
-        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
-        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
-        25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
-        24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U
-    };
-    uint32_t n;
-    if (x >= (1U << 16)) {
-        if (x >= (1U << 24)) {
-            n = 24U;
-        }
-        else {
-            n = 16U;
-        }
-    }
-    else {
-        if (x >= (1U << 8)) {
-            n = 8U;
-        }
-        else {
-            n = 0U;
-        }
-    }
-    return (uint32_t)clz_lkup[x >> n] - n;
+static inline uint32_t byte_swap_32(uint32_t n) {
+	uint32_t a;
+	a = (n & 0xFFU) << 24;
+	a |= (n & 0xFF00U) << 8;
+	a |= (n >> 8) & 0xFF00U;
+	a |= (n >> 24) & 0xFFU;
+	return a;
 }
 #endif
 
@@ -2722,55 +2648,136 @@ private:
 	}
 };
 
-class FLACBitStream {
+#ifdef TINYPRIMESYNTH_FLAC_SUPPORT
+static const std::vector<int32_t> FIXED_PREDICTION_COEFFICIENTS[5] = {
+	{},
+	{ 1 },
+	{ 2, -1 },
+	{ 3, -3, 1 },
+	{ 4, -6, 4, -1 },
+};
 
-  public:
-	FLACBitStream(FileAndMemReader *p_in) : raw_stream(p_in), bit_buffer(0), bit_buffer_length(0), stream_error(false) {}
-		
-	inline void alignToByte() {
+#if defined(__GNUC__) || defined(__clang__)
+inline uint32_t count_leading_zeroes(uint32_t p_x) {
+	return __builtin_clz(p_x);
+}
+#elif defined(_MSC_VER)
+inline uint32_t count_leading_zeroes(uint32_t value) {
+	uint32_t leading_zero = 0;
+	if (_BitScanReverse(&leading_zero, value)) {
+		return 31 - leading_zero;
+	} else {
+		return 32;
+	}
+}
+#else
+static inline uint32_t count_leading_zeroes(uint32_t x) {
+	static constexpr uint8_t const clz_lkup[] = {
+		32U, 31U, 30U, 30U, 29U, 29U, 29U, 29U,
+		28U, 28U, 28U, 28U, 28U, 28U, 28U, 28U,
+		27U, 27U, 27U, 27U, 27U, 27U, 27U, 27U,
+		27U, 27U, 27U, 27U, 27U, 27U, 27U, 27U,
+		26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
+		26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
+		26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
+		26U, 26U, 26U, 26U, 26U, 26U, 26U, 26U,
+		25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+		25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+		25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+		25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+		25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+		25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+		25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+		25U, 25U, 25U, 25U, 25U, 25U, 25U, 25U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U,
+		24U, 24U, 24U, 24U, 24U, 24U, 24U, 24U
+	};
+	uint32_t n;
+	if (x >= (1U << 16)) {
+		if (x >= (1U << 24)) {
+			n = 24U;
+		} else {
+			n = 16U;
+		}
+	} else {
+		if (x >= (1U << 8)) {
+			n = 8U;
+		} else {
+			n = 0U;
+		}
+	}
+	return (uint32_t)clz_lkup[x >> n] - n;
+}
+#endif
+class FLACBitStream {
+public:
+	FLACBitStream(FileAndMemReader *p_in) :
+			raw_stream(p_in), bit_buffer(0), bit_buffer_length(0), stream_error(false) {}
+
+	inline void align_to_byte() {
 		bit_buffer_length -= bit_buffer_length % 8;
 	}
-	
-	inline int32_t readOne() {
-		if (raw_stream->eof())
-			return -1;
-		else
-		{
-			uint8_t ret;
-			raw_stream->read(&ret, 1, 1);
-			return ret;
+
+	int32_t read_one() {
+		if (staging_pos >= staging_fill) {
+			if (raw_stream->eof()) {
+				return -1;
+			}
+			staging_fill = raw_stream->read(staging_buffer, 1, 4096);
+			staging_pos = 0;
+			if (staging_fill == 0) {
+				return -1;
+			}
+		}
+		return staging_buffer[staging_pos++];
+	}
+
+	int32_t read_byte() {
+		if (bit_buffer_length >= 8) {
+			return read_unsigned_int(8);
+		} else {
+			return read_one();
 		}
 	}
 
-	int32_t readByte() {
-		if (bit_buffer_length >= 8)
-			return readUint(8);
-		else
-			return readOne();
-	}
-	
-	int32_t readUint(int32_t p_n) {
+	int32_t read_unsigned_int(int32_t p_n) {
 		while (bit_buffer_length < p_n) {
-			int32_t temp = readOne();
+			int32_t temp = read_one();
 			bit_buffer = (bit_buffer << 8) | temp;
 			bit_buffer_length += 8;
 		}
 		bit_buffer_length -= p_n;
 		int32_t result = (int32_t)(bit_buffer >> bit_buffer_length);
-		if (p_n < 32)
+		if (p_n < 32) {
 			result &= (1 << p_n) - 1;
+		}
 		return result;
 	}
-	
-	int32_t readSignedInt(int32_t p_n) {
-		return (readUint(p_n) << (32 - p_n)) >> (32 - p_n);
+
+	int32_t read_signed_int(int32_t p_n) {
+		return (read_unsigned_int(p_n) << (32 - p_n)) >> (32 - p_n);
 	}
-	
-	int64_t readRiceSignedInt(int32_t p_param) {
+
+	int64_t read_rice_signed_int(int32_t p_param) {
 		int64_t val = 0;
-		while (readUint(1) == 0)
+		while (read_unsigned_int(1) == 0) {
 			val++;
-		val = (val << p_param) | readUint(p_param);
+		}
+		val = (val << p_param) | read_unsigned_int(p_param);
 		return (val >> 1) ^ -(val & 1);
 	}
 
@@ -2786,285 +2793,292 @@ class FLACBitStream {
 		return raw_stream->eof();
 	}
 
-  private:
+private:
 	FileAndMemReader *raw_stream;
 	int64_t bit_buffer;
 	int32_t bit_buffer_length;
-	bool    stream_error;
+	bool stream_error;
+	uint8_t staging_buffer[4096];
+	size_t staging_pos = 0;
+	size_t staging_fill = 0;
 };
 
-static const std::vector<int32_t> FIXED_PREDICTION_COEFFICIENTS[5] = {
-	{},
-	{1},
-	{2, -1},
-	{3, -3, 1},
-	{4, -6, 4, -1},
-};
-
-static void writeLittleInt(int32_t numBytes, int32_t val, std::vector<uint8_t> &out) {
-	for (int32_t i = 0; i < numBytes; i++)
-		out.push_back((uint8_t)(val >> (i * 8)));
+static void write_little_int(int32_t p_num_bytes, int32_t p_val, std::vector<uint8_t> &p_out) {
+	for (int32_t i = 0; i < p_num_bytes; i++) {
+		p_out.push_back((uint8_t)(p_val >> (i * 8)));
+	}
 }
 
-static void restoreLinearPrediction(std::vector<int64_t> &result, const std::vector<int32_t> &coefs, int32_t shift) {
-	for (int32_t i = coefs.size(); i < result.size(); i++) {
+static void restore_flac_linear_prediction(std::vector<int64_t> &p_result, const std::vector<int32_t> &p_coefs, int32_t p_shift) {
+	for (int32_t i = p_coefs.size(); i < p_result.size(); i++) {
 		int64_t sum = 0;
-		for (int32_t j = 0; j < coefs.size(); j++)
-			sum += result[i - 1 - j] * coefs[j];
-		result[i] += sum >> shift;
+		for (int32_t j = 0; j < p_coefs.size(); j++) {
+			sum += p_result[i - 1 - j] * p_coefs[j];
+		}
+		p_result[i] += sum >> p_shift;
 	}
 }
 
-static void decodeResiduals(FLACBitStream &in, int32_t warmup, std::vector<int64_t> &result) {
-	int32_t method = in.readUint(2);
-	if (method >= 2)
-	{
+static void decode_flac_residuals(FLACBitStream &p_in, int32_t p_warmup, std::vector<int64_t> &p_result) {
+	int32_t method = p_in.read_unsigned_int(2);
+	if (method >= 2) {
 		// Reserved residual coding method
-		in.set_stream_error(true);
+		p_in.set_stream_error(true);
 		return;
 	}
-	int32_t paramBits = method == 0 ? 4 : 5;
-	int32_t escapeParam = method == 0 ? 0xF : 0x1F;
-	
-	int32_t partitionOrder = in.readUint(4);
-	int32_t numPartitions = 1 << partitionOrder;
-	if (result.size() % numPartitions != 0)
-	{
+	int32_t param_bits = method == 0 ? 4 : 5;
+	int32_t escape_param = method == 0 ? 0xF : 0x1F;
+
+	int32_t partition_order = p_in.read_unsigned_int(4);
+	int32_t num_partitions = 1 << partition_order;
+	if (p_result.size() % num_partitions != 0) {
 		// Block size not divisible by number of Rice partitions
-		in.set_stream_error(true);
+		p_in.set_stream_error(true);
 		return;
 	}
-	int32_t partitionSize = result.size() / numPartitions;
-	
-	for (int32_t i = 0; i < numPartitions; i++) {
-		int32_t start = i * partitionSize + (i == 0 ? warmup : 0);
-		int32_t end = (i + 1) * partitionSize;
-		
-		int32_t param = in.readUint(paramBits);
-		if (param < escapeParam) {
-			for (int32_t j = start; j < end; j++)
-				result[j] = in.readRiceSignedInt(param);
+	int32_t partition_size = p_result.size() / num_partitions;
+
+	for (int32_t i = 0; i < num_partitions; i++) {
+		int32_t start = i * partition_size + (i == 0 ? p_warmup : 0);
+		int32_t end = (i + 1) * partition_size;
+
+		int32_t param = p_in.read_unsigned_int(param_bits);
+		if (param < escape_param) {
+			for (int32_t j = start; j < end; j++) {
+				p_result[j] = p_in.read_rice_signed_int(param);
+			}
 		} else {
-			int32_t numBits = in.readUint(5);
-			for (int32_t j = start; j < end; j++)
-				result[j] = in.readSignedInt(numBits);
+			int32_t num_bits = p_in.read_unsigned_int(5);
+			for (int32_t j = start; j < end; j++) {
+				p_result[j] = p_in.read_signed_int(num_bits);
+			}
 		}
 	}
 }
 
-static void decodeLinearPredictiveCodingSubframe(FLACBitStream &in, int32_t lpcOrder, int32_t sampleDepth, std::vector<int64_t> &result) {
-	for (int32_t i = 0; i < lpcOrder; i++)
-		result[i] = in.readSignedInt(sampleDepth);
-	int32_t precision = in.readUint(4) + 1;
-	int32_t shift = in.readSignedInt(5);
-	std::vector<int32_t> coefs;
-	coefs.resize(lpcOrder);
-	for (int32_t i = 0; i < coefs.size(); i++)
-		coefs[i] = in.readSignedInt(precision);
-	decodeResiduals(in, lpcOrder, result);
-	restoreLinearPrediction(result, coefs, shift);
+static void decode_flac_lpc_subframe(FLACBitStream &p_in, int32_t p_lpc_order, int32_t p_sample_depth, std::vector<int32_t> &p_coefs, std::vector<int64_t> &p_result) {
+	for (int32_t i = 0; i < p_lpc_order; i++) {
+		p_result[i] = p_in.read_signed_int(p_sample_depth);
+	}
+	int32_t precision = p_in.read_unsigned_int(4) + 1;
+	int32_t shift = p_in.read_signed_int(5);
+	p_coefs.resize(p_lpc_order);
+	for (int32_t i = 0; i < p_coefs.size(); i++) {
+		p_coefs[i] = p_in.read_signed_int(precision);
+	}
+	decode_flac_residuals(p_in, p_lpc_order, p_result);
+	restore_flac_linear_prediction(p_result, p_coefs, shift);
 }
 
-static void decodeFixedPredictionSubframe(FLACBitStream &in, int32_t predOrder, int32_t sampleDepth, std::vector<int64_t> &result) {
-	for (int32_t i = 0; i < predOrder; i++)
-		result[i] = in.readSignedInt(sampleDepth);
-	decodeResiduals(in, predOrder, result);
-	restoreLinearPrediction(result, FIXED_PREDICTION_COEFFICIENTS[predOrder], 0);
+static void decode_flac_fp_subframe(FLACBitStream &p_in, int32_t p_pred_order, int32_t p_sample_depth, std::vector<int64_t> &p_result) {
+	for (int32_t i = 0; i < p_pred_order; i++) {
+		p_result[i] = p_in.read_signed_int(p_sample_depth);
+	}
+	decode_flac_residuals(p_in, p_pred_order, p_result);
+	restore_flac_linear_prediction(p_result, FIXED_PREDICTION_COEFFICIENTS[p_pred_order], 0);
 }
 
-static void decodeSubframe(FLACBitStream &in, int32_t sampleDepth, std::vector<int64_t> &result) {
-	in.readUint(1);
-	int32_t type = in.readUint(6);
-	int32_t shift = in.readUint(1);
+static void decode_flac_subframe(FLACBitStream &p_in, int32_t p_sample_depth, std::vector<int64_t> &p_result, std::vector<int32_t> &p_coefs) {
+	p_in.read_unsigned_int(1);
+	int32_t type = p_in.read_unsigned_int(6);
+	int32_t shift = p_in.read_unsigned_int(1);
 	if (shift == 1) {
-		while (in.readUint(1) == 0)
+		while (p_in.read_unsigned_int(1) == 0) {
 			shift++;
+		}
 	}
-	sampleDepth -= shift;
-	
-	if (type == 0)  // Constant coding
+	p_sample_depth -= shift;
+
+	if (type == 0) // Constant coding
 	{
-		int32_t filler = in.readSignedInt(sampleDepth);
-		for (size_t i = 0; i < result.size(); i++)
-			result[i] = filler;
-	}
-	else if (type == 1) {  // Verbatim coding
-		for (int32_t i = 0; i < result.size(); i++)
-			result[i] = in.readSignedInt(sampleDepth);
-	} else if (8 <= type && type <= 12)
-		decodeFixedPredictionSubframe(in, type - 8, sampleDepth, result);
-	else if (32 <= type && type <= 63)
-		decodeLinearPredictiveCodingSubframe(in, type - 31, sampleDepth, result);
-	else
-	{
+		int32_t filler = p_in.read_signed_int(p_sample_depth);
+		for (size_t i = 0; i < p_result.size(); i++) {
+			p_result[i] = filler;
+		}
+	} else if (type == 1) { // Verbatim coding
+		for (int32_t i = 0; i < p_result.size(); i++) {
+			p_result[i] = p_in.read_signed_int(p_sample_depth);
+		}
+	} else if (8 <= type && type <= 12) {
+		decode_flac_fp_subframe(p_in, type - 8, p_sample_depth, p_result);
+	} else if (32 <= type && type <= 63) {
+		decode_flac_lpc_subframe(p_in, type - 31, p_sample_depth, p_coefs, p_result);
+	} else {
 		// Reserved subframe type
-		in.set_stream_error(true);
+		p_in.set_stream_error(true);
 		return;
 	}
-	
-	for (int32_t i = 0; i < result.size(); i++)
-		result[i] <<= shift;
+
+	for (int32_t i = 0; i < p_result.size(); i++) {
+		p_result[i] <<= shift;
+	}
 }
 
-static void decodeSubframes(FLACBitStream &in, int32_t sampleDepth, int32_t chanAsgn, std::vector<std::vector<int32_t>> &result) {
-	int32_t blockSize = result[0].size();
-	std::vector<std::vector<int64_t>> subframes;
-	subframes.resize(result.size());
-	for (std::vector<int64_t> &block : subframes)
-	{
-		block.resize(blockSize);
-	}
-	if (0 <= chanAsgn && chanAsgn <= 7) {
-		for (int32_t ch = 0; ch < result.size(); ch++)
-			decodeSubframe(in, sampleDepth, subframes[ch]);
-	} else if (8 <= chanAsgn && chanAsgn <= 10) {
-		decodeSubframe(in, sampleDepth + (chanAsgn == 9 ? 1 : 0), subframes[0]);
-		decodeSubframe(in, sampleDepth + (chanAsgn == 9 ? 0 : 1), subframes[1]);
-		if (chanAsgn == 8) {
-			for (int32_t i = 0; i < blockSize; i++)
-				subframes[1][i] = subframes[0][i] - subframes[1][i];
-		} else if (chanAsgn == 9) {
-			for (int32_t i = 0; i < blockSize; i++)
-				subframes[0][i] += subframes[1][i];
-		} else if (chanAsgn == 10) {
-			for (int32_t i = 0; i < blockSize; i++) {
-				int64_t side = subframes[1][i];
-				int64_t right = subframes[0][i] - (side >> 1);
-				subframes[1][i] = right;
-				subframes[0][i] = right + side;
+static void decode_flac_subframes(FLACBitStream &p_in, int32_t p_sample_depth, int32_t p_chan_asgn, std::vector<std::vector<int32_t>> &p_samples, std::vector<std::vector<int64_t>> &p_subframes, std::vector<int32_t> &p_coefs) {
+	int32_t block_size = p_samples[0].size();
+	if (0 <= p_chan_asgn && p_chan_asgn <= 7) {
+		for (int32_t ch = 0; ch < p_samples.size(); ch++) {
+			decode_flac_subframe(p_in, p_sample_depth, p_subframes[ch], p_coefs);
+		}
+	} else if (8 <= p_chan_asgn && p_chan_asgn <= 10) {
+		decode_flac_subframe(p_in, p_sample_depth + (p_chan_asgn == 9 ? 1 : 0), p_subframes[0], p_coefs);
+		decode_flac_subframe(p_in, p_sample_depth + (p_chan_asgn == 9 ? 0 : 1), p_subframes[1], p_coefs);
+		if (p_chan_asgn == 8) {
+			for (int32_t i = 0; i < block_size; i++) {
+				p_subframes[1][i] = p_subframes[0][i] - p_subframes[1][i];
+			}
+		} else if (p_chan_asgn == 9) {
+			for (int32_t i = 0; i < block_size; i++) {
+				p_subframes[0][i] += p_subframes[1][i];
+			}
+		} else if (p_chan_asgn == 10) {
+			for (int32_t i = 0; i < block_size; i++) {
+				int64_t side = p_subframes[1][i];
+				int64_t right = p_subframes[0][i] - (side >> 1);
+				p_subframes[1][i] = right;
+				p_subframes[0][i] = right + side;
 			}
 		}
 	} else {
 		// Reserved channel assignment
-		in.set_stream_error(true);
+		p_in.set_stream_error(true);
 		return;
 	}
-	for (int32_t ch = 0; ch < result.size(); ch++) {
-		for (int32_t i = 0; i < blockSize; i++)
-			result[ch][i] = (int32_t)subframes[ch][i];
+	for (int32_t ch = 0; ch < p_samples.size(); ch++) {
+		for (int32_t i = 0; i < block_size; i++) {
+			p_samples[ch][i] = (int32_t)p_subframes[ch][i];
+		}
 	}
 }
 
-static bool decodeFrame(FLACBitStream &in, int32_t numChannels, int32_t sampleDepth, std::vector<uint8_t> &out) {
+static bool decode_flac_frame(FLACBitStream &p_in, int32_t p_num_channels, int32_t p_sample_depth, std::vector<std::vector<int32_t>> &p_samples, std::vector<std::vector<int64_t>> &p_subframes, std::vector<int32_t> &p_coefs, std::vector<uint8_t> &p_out) {
 	// Read a ton of header fields, and ignore most of them
-	int32_t temp = in.readByte();
-	if (temp == -1)
+	int32_t temp = p_in.read_byte();
+	if (temp == -1) {
 		return false;
-	int32_t sync = temp << 6 | in.readUint(6);
-	if (sync != 0x3FFE)
-	{
+	}
+	int32_t sync = temp << 6 | p_in.read_unsigned_int(6);
+	if (sync != 0x3FFE) {
 		// not a sync code
-		if (!in.stream_at_end()) // need to see why this is happening at the end consistently :/
-			in.set_stream_error(true);
+		if (!p_in.stream_at_end()) { // need to see why this is happening at the end consistently :/
+			p_in.set_stream_error(true);
+		}
 		return false;
 	}
-	
-	in.readUint(1);
-	in.readUint(1);
-	int32_t blockSizeCode = in.readUint(4);
-	int32_t sampleRateCode = in.readUint(4);
-	int32_t chanAsgn = in.readUint(4);
-	in.readUint(3);
-	in.readUint(1);
-	
-	temp = count_leading_zeroes(~(in.readUint(8) << 24)) - 1;
-	for (int32_t i = 0; i < temp; i++)
-		in.readUint(8);
-	
-	int32_t blockSize;
-	if (blockSizeCode == 1)
-		blockSize = 192;
-	else if (2 <= blockSizeCode && blockSizeCode <= 5)
-		blockSize = 576 << (blockSizeCode - 2);
-	else if (blockSizeCode == 6)
-		blockSize = in.readUint(8) + 1;
-	else if (blockSizeCode == 7)
-		blockSize = in.readUint(16) + 1;
-	else if (8 <= blockSizeCode && blockSizeCode <= 15)
-		blockSize = 256 << (blockSizeCode - 8);
-	else
-	{
+
+	p_in.read_unsigned_int(2);
+	int32_t block_size_code = p_in.read_unsigned_int(4);
+	int32_t sample_rate_code = p_in.read_unsigned_int(4);
+	int32_t chan_asgn = p_in.read_unsigned_int(4);
+	p_in.read_unsigned_int(4);
+
+	temp = count_leading_zeroes(~(p_in.read_unsigned_int(8) << 24)) - 1;
+	for (int32_t i = 0; i < temp; i++) {
+		p_in.read_unsigned_int(8);
+	}
+
+	int32_t block_size;
+	if (block_size_code == 1) {
+		block_size = 192;
+	} else if (2 <= block_size_code && block_size_code <= 5) {
+		block_size = 576 << (block_size_code - 2);
+	} else if (block_size_code == 6) {
+		block_size = p_in.read_unsigned_int(8) + 1;
+	} else if (block_size_code == 7) {
+		block_size = p_in.read_unsigned_int(16) + 1;
+	} else if (8 <= block_size_code && block_size_code <= 15) {
+		block_size = 256 << (block_size_code - 8);
+	} else {
 		// unsupported block size?
-		in.set_stream_error(true);
+		p_in.set_stream_error(true);
 		return false;
 	}
-	
-	if (sampleRateCode == 12)
-		in.readUint(8);
-	else if (sampleRateCode == 13 || sampleRateCode == 14)
-		in.readUint(16);
-	
-	in.readUint(8);
-	
-	// Decode each channel's subframe, then skip footer
-	std::vector<std::vector<int32_t>> samples;
-	samples.resize(numChannels);
-	for (std::vector<int32_t> &block : samples)
-	{
-		block.resize(blockSize);
+
+	if (sample_rate_code == 12) {
+		p_in.read_unsigned_int(8);
+	} else if (sample_rate_code == 13 || sample_rate_code == 14) {
+		p_in.read_unsigned_int(16);
 	}
-	decodeSubframes(in, sampleDepth, chanAsgn, samples);
-	in.alignToByte();
-	in.readUint(16);
-	
+
+	p_in.read_unsigned_int(8);
+
+	// Decode each channel's subframe, then skip footer
+	for (int32_t ch = 0; ch < p_num_channels; ++ch) {
+		p_samples[ch].resize(block_size);
+		p_subframes[ch].resize(block_size);
+	}
+	decode_flac_subframes(p_in, p_sample_depth, chan_asgn, p_samples, p_subframes, p_coefs);
+	p_in.align_to_byte();
+	p_in.read_unsigned_int(16);
+
 	// Write the decoded samples
-	for (int32_t i = 0; i < blockSize; i++) {
-		for (int32_t j = 0; j < numChannels; j++) {
-			int32_t val = samples[j][i];
-			if (sampleDepth == 8)
+	for (int32_t i = 0; i < block_size; i++) {
+		for (int32_t j = 0; j < p_num_channels; j++) {
+			int32_t val = p_samples[j][i];
+			if (p_sample_depth == 8) {
 				val += 128;
-			writeLittleInt(sampleDepth / 8, val, out);
+			}
+			write_little_int(p_sample_depth / 8, val, p_out);
 		}
 	}
 	return true;
 }
 
-static std::vector<uint8_t> decodeFile(FLACBitStream &in) {
+static std::vector<uint8_t> decode_sf2_flac(FLACBitStream &p_in) {
 	// Handle FLAC header and metadata blocks
-	std::vector<uint8_t> out;	
-	if (in.readUint(32) != 0x664C6143)
+	std::vector<uint8_t> out;
+	if (p_in.read_unsigned_int(32) != 0x664C6143) {
 		return out; // Not a FLAC
-	int32_t sampleRate = -1;
-	int32_t numChannels = -1;
-	int32_t sampleDepth = -1;
-	int64_t numSamples = -1;
-	for (bool last = false; !last; ) {
-		last = in.readUint(1) != 0;
-		int32_t type = in.readUint(7);
-		int32_t length = in.readUint(24);
-		if (type == 0) {  // Stream info block
-			in.readUint(16);
-			in.readUint(16);
-			in.readUint(24);
-			in.readUint(24);
-			sampleRate = in.readUint(20);
-			numChannels = in.readUint(3) + 1;
-			sampleDepth = in.readUint(5) + 1;
-			numSamples = (int64_t)in.readUint(18) << 18 | in.readUint(18);
-			for (int32_t i = 0; i < 16; i++)
-				in.readUint(8);
+	}
+	int32_t sample_rate = -1;
+	int32_t num_channels = -1;
+	int32_t sample_depth = -1;
+	int64_t num_samples = -1;
+	for (bool last = false; !last;) {
+		last = p_in.read_unsigned_int(1) != 0;
+		int32_t type = p_in.read_unsigned_int(7);
+		int32_t length = p_in.read_unsigned_int(24);
+		if (type == 0) { // Stream info block
+			p_in.read_unsigned_int(80);
+			sample_rate = p_in.read_unsigned_int(20);
+			num_channels = p_in.read_unsigned_int(3) + 1;
+			sample_depth = p_in.read_unsigned_int(5) + 1;
+			num_samples = (int64_t)p_in.read_unsigned_int(18) << 18 | p_in.read_unsigned_int(18);
+			for (int32_t i = 0; i < 16; i++) {
+				p_in.read_unsigned_int(8);
+			}
 		} else {
-			for (int32_t i = 0; i < length; i++)
-				in.readUint(8);
+			for (int32_t i = 0; i < length; i++) {
+				p_in.read_unsigned_int(8);
+			}
 		}
 	}
-	if (sampleRate == -1)
+	if (sample_rate == -1) {
 		return out;
-	if (sampleDepth % 8 != 0)
+	}
+	if (sample_depth % 8 != 0) {
 		return out;
-
-	// Decode FLAC audio frames and write raw samples
-	while (decodeFrame(in, numChannels, sampleDepth, out))
-	{
-		if (in.get_stream_error())
-			break;
 	}
 
-	if (in.get_stream_error())
+	std::vector<std::vector<int32_t>> samples(num_channels);
+	std::vector<std::vector<int64_t>> subframes(num_channels);
+	std::vector<int32_t> coefs;
+
+	// Decode FLAC audio frames and write raw samples
+	while (decode_flac_frame(p_in, num_channels, sample_depth, samples, subframes, coefs, out)) {
+		if (p_in.get_stream_error()) {
+			break;
+		}
+	}
+
+	if (p_in.get_stream_error()) {
 		out.clear();
+	}
 
 	return out;
 }
+#endif // TINYPRIMESYNTH_FLAC_SUPPORT
+
 class Synthesizer::Sequencer {
 	class FixedFraction {
 	public:
@@ -5046,18 +5060,17 @@ bool Synthesizer::load_soundfont(const char *p_filename) {
 		return false;
 	}
 	load_error = false;
+#ifdef TINYPRIMESYNTH_FLAC_SUPPORT
 	char flac_check[4];
 	p_font->read(&flac_check, 1, 4);
 	p_font->seek(0, SEEK_SET);
-	if (!memcmp(flac_check, FLAC_MAGIC, 4))
-	{
+	if (!memcmp(flac_check, FLAC_MAGIC, 4)) {
 		FLACBitStream decoder(p_font);
-		std::vector<uint8_t> decoded = decodeFile(decoder);
+		std::vector<uint8_t> decoded = decode_sf2_flac(decoder);
 		delete p_font;
-		if (decoded.empty())
+		if (decoded.empty()) {
 			return false;
-		else
-		{
+		} else {
 			FileAndMemReader *font = new FileAndMemReader;
 			font->open_data(decoded.data(), decoded.size());
 			soundfont = new SoundFont(font, this);
@@ -5065,13 +5078,16 @@ bool Synthesizer::load_soundfont(const char *p_filename) {
 			delete font;
 			return !load_error;
 		}
-	}
-	else
-	{
+	} else {
 		soundfont = new SoundFont(p_font, this);
 		delete p_font;
 		return !load_error;
 	}
+#else
+	soundfont = new SoundFont(p_font, this);
+	delete p_font;
+	return !load_error;
+#endif
 }
 
 bool Synthesizer::load_soundfont(const uint8_t *p_data, size_t p_length) {
@@ -5085,18 +5101,17 @@ bool Synthesizer::load_soundfont(const uint8_t *p_data, size_t p_length) {
 		return false;
 	}
 	load_error = false;
+#ifdef TINYPRIMESYNTH_FLAC_SUPPORT
 	char flac_check[4];
 	p_font->read(&flac_check, 1, 4);
 	p_font->seek(0, SEEK_SET);
-	if (!memcmp(flac_check, FLAC_MAGIC, 4))
-	{
+	if (!memcmp(flac_check, FLAC_MAGIC, 4)) {
 		FLACBitStream decoder(p_font);
-		std::vector<uint8_t> decoded = decodeFile(decoder);
+		std::vector<uint8_t> decoded = decode_sf2_flac(decoder);
 		delete p_font;
-		if (decoded.empty())
+		if (decoded.empty()) {
 			return false;
-		else
-		{
+		} else {
 			FileAndMemReader *font = new FileAndMemReader;
 			font->open_data(decoded.data(), decoded.size());
 			soundfont = new SoundFont(font, this);
@@ -5104,13 +5119,16 @@ bool Synthesizer::load_soundfont(const uint8_t *p_data, size_t p_length) {
 			delete font;
 			return !load_error;
 		}
-	}
-	else
-	{
+	} else {
 		soundfont = new SoundFont(p_font, this);
 		delete p_font;
 		return !load_error;
 	}
+#else
+	soundfont = new SoundFont(p_font, this);
+	delete p_font;
+	return !load_error;
+#endif
 }
 
 bool Synthesizer::load_song(const char *p_filename) {
