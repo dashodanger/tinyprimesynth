@@ -3,8 +3,7 @@
 //------------------------------------------------------------------------------------------------
 //
 // Copyright (c) 2025 dashodanger
-// Copyright (c) 2021-2022 Steve Clark (original Mus2Midi implementation)
-// Copyright (C) 2015-2025 Vitaly Novichkov "Wohlstand" (original BW_Midi_Sequencer implementation)
+// Copyright (c) 2015-2025 Vitaly Novichkov "Wohlstand" (original BW_Midi_Sequencer implementation)
 // Copyright (c) 2018 mosm (original PrimeSynth implementation)
 //
 // Permission is hereby granted, free of charge, to any person obtaining a copy
@@ -26,6 +25,30 @@
 // SOFTWARE.
 //
 //------------------------------------------------------------------------------------------------
+//
+// MUS-to-MIDI conversion adapted from code Copyright (c) 2021-2022 Steve Clark
+// with the following license (zlib):
+//
+// This software is provided 'as-is', without any express or implied
+// warranty.  In no event will the authors be held liable for any damages
+// arising from the use of this software.
+//
+// Permission is granted to anyone to use this software for any purpose,
+// including commercial applications, and to alter it and redistribute it
+// freely, subject to the following restrictions:
+//
+// 1. The origin of this software must not be misrepresented; you must not
+//    claim that you wrote the original software. If you use this software
+//    in a product, an acknowledgment in the product documentation would be
+//    appreciated but is not required.
+// 2. Altered source versions must be plainly marked as such, and must not be
+//    misrepresented as being the original software.
+// 3. This notice may not be removed or altered from any source distribution.
+//
+//------------------------------------------------------------------------------------------------
+
+#ifndef TINYPRIMESYNTH_HEADER
+#define TINYPRIMESYNTH_HEADER
 
 #include <stdint.h>
 #include <stdio.h>
@@ -78,6 +101,8 @@ private:
 
 } // namespace tinyprimesynth
 
+#endif // TINYPRIMESYNTH_HEADER
+
 #ifdef TINYPRIMESYNTH_IMPLEMENTATION
 
 #include <limits.h>
@@ -106,6 +131,24 @@ static constexpr unsigned int CALC_INTERVAL = 64;
 static constexpr float ATTEN_FACTOR = 0.4f;
 static constexpr uint32_t COARSE_UNIT = 32768;
 static constexpr size_t NUM_GENERATORS = 62;
+static constexpr uint32_t FOUR_CC_RIFF = 1179011410;
+static constexpr uint32_t FOUR_CC_SFBK = 1801610867;
+static constexpr uint32_t FOUR_CC_LIST = 1414744396;
+static constexpr uint32_t FOUR_CC_INFO = 1330007625;
+static constexpr uint32_t FOUR_CC_SDTA = 1635017843;
+static constexpr uint32_t FOUR_CC_PDTA = 1635017840;
+static constexpr uint32_t FOUR_CC_IFIL = 1818846825;
+static constexpr uint32_t FOUR_CC_INAM = 1296125513;
+static constexpr uint32_t FOUR_CC_SMPL = 1819307379;
+static constexpr uint32_t FOUR_CC_PHDR = 1919182960;
+static constexpr uint32_t FOUR_CC_PBAG = 1734435440;
+static constexpr uint32_t FOUR_CC_PMOD = 1685024112;
+static constexpr uint32_t FOUR_CC_PGEN = 1852139376;
+static constexpr uint32_t FOUR_CC_INST = 1953721961;
+static constexpr uint32_t FOUR_CC_IBAG = 1734435433;
+static constexpr uint32_t FOUR_CC_IMOD = 1685024105;
+static constexpr uint32_t FOUR_CC_IGEN = 1852139369;
+static constexpr uint32_t FOUR_CC_SHDR = 1919182963;
 static constexpr int16_t DEFAULT_GENERATOR_VALUES[NUM_GENERATORS] = {
 	0, 0, 0, 0, 0, 0, 0, 0, 13500, 0, 0, 0, 0, 0, 0, 0,
 	0, 0, 0, 0, 0, -12000, 0, -12000, 0, -12000, -12000, -12000, -12000, 0, -12000, 0,
@@ -1329,7 +1372,15 @@ private:
 
 struct Zone {
 	struct Range {
-		int8_t min = 0, max = 127;
+		Range() :
+				min(0), max(127) {}
+
+		Range(int8_t p_min, int8_t p_max) {
+			min = p_min;
+			max = p_max;
+		}
+
+		int8_t min, max;
 
 		inline bool contains(int8_t p_value) const {
 			return min <= p_value && p_value <= max;
@@ -1488,7 +1539,7 @@ static uint32_t read_four_cc(FileAndMemReader *p_file) {
 	return id;
 }
 
-static constexpr uint32_t to_four_cc(const char p_str[5]) {
+static const uint32_t to_four_cc(const char p_str[5]) {
 	uint32_t four_cc = 0;
 	for (int i = 0; i < 4; ++i) {
 		four_cc |= p_str[i] << CHAR_BIT * i;
@@ -1505,7 +1556,7 @@ public:
 
 		const RIFFHeader riff_header = read_header(p_file);
 		const uint32_t riff_type = read_four_cc(p_file);
-		if (riff_header.id != to_four_cc("RIFF") || riff_type != to_four_cc("sfbk")) {
+		if (riff_header.id != FOUR_CC_RIFF || riff_type != FOUR_CC_SFBK) {
 			printf("not a SoundFont file");
 			p_synth->set_load_error(true);
 			return;
@@ -1515,17 +1566,17 @@ public:
 			const RIFFHeader chunk_header = read_header(p_file);
 			s += sizeof(chunk_header) + chunk_header.size;
 			switch (chunk_header.id) {
-				case to_four_cc("LIST"): {
+				case FOUR_CC_LIST: {
 					const uint32_t chunk_type = read_four_cc(p_file);
 					const size_t chunk_size = chunk_header.size - sizeof(chunk_type);
 					switch (chunk_type) {
-						case to_four_cc("INFO"):
+						case FOUR_CC_INFO:
 							read_info_chunk(p_file, chunk_size, p_synth);
 							break;
-						case to_four_cc("sdta"):
+						case FOUR_CC_SDTA:
 							read_sdta_chunk(p_file, chunk_size, p_synth);
 							break;
-						case to_four_cc("pdta"):
+						case FOUR_CC_PDTA:
 							read_pdta_chunk(p_file, chunk_size, p_synth);
 							break;
 						default:
@@ -1573,7 +1624,7 @@ private:
 			const RIFFHeader subchunk_header = read_header(p_file);
 			s += sizeof(subchunk_header) + subchunk_header.size;
 			switch (subchunk_header.id) {
-				case to_four_cc("ifil"): {
+				case FOUR_CC_IFIL: {
 					VersionTag ver;
 					p_file->read((char *)&ver, 1, subchunk_header.size);
 					if (ver.major > 2 || ver.minor > 4) {
@@ -1583,7 +1634,7 @@ private:
 					}
 					break;
 				}
-				case to_four_cc("INAM"): // Skip the name, we don't do anything with it
+				case FOUR_CC_INAM: // Skip the name, we don't do anything with it
 				default:
 					p_file->seek(subchunk_header.size, SEEK_CUR);
 					break;
@@ -1596,7 +1647,7 @@ private:
 			const RIFFHeader subchunk_header = read_header(p_file);
 			s += sizeof(subchunk_header) + subchunk_header.size;
 			switch (subchunk_header.id) {
-				case to_four_cc("smpl"):
+				case FOUR_CC_SMPL:
 					if (subchunk_header.size == 0) {
 						printf("no sample data found");
 						p_synth->set_load_error(true);
@@ -1668,31 +1719,31 @@ private:
 			const RIFFHeader subchunk_header = read_header(p_file);
 			s += sizeof(subchunk_header) + subchunk_header.size;
 			switch (subchunk_header.id) {
-				case to_four_cc("phdr"):
+				case FOUR_CC_PHDR:
 					read_pdta_list(p_file, phdr, subchunk_header.size, p_synth);
 					break;
-				case to_four_cc("pbag"):
+				case FOUR_CC_PBAG:
 					read_pdta_list(p_file, pbag, subchunk_header.size, p_synth);
 					break;
-				case to_four_cc("pmod"):
+				case FOUR_CC_PMOD:
 					read_mod_list(p_file, pmod, subchunk_header.size, p_synth);
 					break;
-				case to_four_cc("pgen"):
+				case FOUR_CC_PGEN:
 					read_pdta_list(p_file, pgen, subchunk_header.size, p_synth);
 					break;
-				case to_four_cc("inst"):
+				case FOUR_CC_INST:
 					read_pdta_list(p_file, inst, subchunk_header.size, p_synth);
 					break;
-				case to_four_cc("ibag"):
+				case FOUR_CC_IBAG:
 					read_pdta_list(p_file, ibag, subchunk_header.size, p_synth);
 					break;
-				case to_four_cc("imod"):
+				case FOUR_CC_IMOD:
 					read_mod_list(p_file, imod, subchunk_header.size, p_synth);
 					break;
-				case to_four_cc("igen"):
+				case FOUR_CC_IGEN:
 					read_pdta_list(p_file, igen, subchunk_header.size, p_synth);
 					break;
-				case to_four_cc("shdr"):
+				case FOUR_CC_SHDR:
 					read_pdta_list(p_file, shdr, subchunk_header.size, p_synth);
 					break;
 				default:

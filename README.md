@@ -1,7 +1,7 @@
 # tinyprimesynth
 
 ## About
-TinyPrimeSynth is an MIT-licensed, header-only C++14 MIDI soundfont synthesizer that attempts to abstract away many of the details of rendering MIDI files, providing an interface closer to that of a simple decoder. It is intended for use in game engines or other applications in which real-time playback without granular controls is sufficient. It is similar to the TinySoundFont project (https://github.com/schellingb/TinySoundFont), but provides a more robust implementation (for example, modulator support) at the expense of a somewhat higher overhead and the lack of signed 16-bit output.
+TinyPrimeSynth is an MIT-licensed, header-only C++11 MIDI soundfont synthesizer that attempts to abstract away many of the details of rendering MIDI files, providing an interface closer to that of a simple decoder. It is intended for use in game engines or other applications in which real-time playback without granular controls is sufficient. It is similar to the TinySoundFont project (https://github.com/schellingb/TinySoundFont), but provides a more robust implementation (for example, modulator support) at the expense of a somewhat higher overhead and the lack of signed 16-bit output.
 
 It integrates the PrimeSynth (https://github.com/mosmeh/primesynth) and BW_Midi_Sequencer (https://github.com/Wohlstand/BW_Midi_Sequencer) libraries, albeit with substantial modifications.
 
