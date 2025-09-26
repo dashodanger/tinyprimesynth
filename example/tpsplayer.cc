@@ -61,48 +61,27 @@ int main(int argc, char *argv[]) {
 		sargs_shutdown();
 		exit(EXIT_SUCCESS);
 	}
-	const char *parm_check = sargs_value("soundfont");
-	if (*parm_check == '\0') {
+	const char *soundfont = sargs_value("soundfont");
+	if (*soundfont == '\0') {
 		print_help();
 		sargs_shutdown();
 		exit(EXIT_FAILURE);
-	} else {
-		midi_soundfont = new tinyprimesynth::FileAndMemReader;
-		midi_soundfont->open_file(parm_check);
-		if (!midi_soundfont->is_valid()) {
-			delete midi_soundfont;
-			printf("Error opening soundfont %s\n", parm_check);
-			sargs_shutdown();
-			exit(EXIT_FAILURE);
-		}
 	}
-	parm_check = sargs_value("song");
-	if (*parm_check == '\0') {
+	const char *song = sargs_value("song");
+	if (*song == '\0') {
 		print_help();
 		sargs_shutdown();
 		exit(EXIT_FAILURE);
-	} else {
-		midi_track = new tinyprimesynth::FileAndMemReader;
-		midi_track->open_file(parm_check);
-		if (!midi_track->is_valid()) {
-			delete midi_soundfont;
-			delete midi_track;
-			printf("Error opening song %s\n", parm_check);
-			sargs_shutdown();
-			exit(EXIT_FAILURE);
-		}
 	}
-	parm_check = sargs_value("voices");
-	if (*parm_check != '\0') {
-		int voices = atoi(parm_check);
-		if (voices <= 0) {
-			delete midi_soundfont;
-			delete midi_track;
+	const char *voices = sargs_value("voices");
+	if (*voices != '\0') {
+		int num_voices = atoi(voices);
+		if (num_voices <= 0) {
 			printf("Must have more than 0 voices!\n");
 			sargs_shutdown();
 			exit(EXIT_FAILURE);
 		} else {
-			midi_voices = (size_t)voices;
+			midi_voices = (size_t)num_voices;
 		}
 	}
 
@@ -116,27 +95,20 @@ int main(int argc, char *argv[]) {
 
 	midi_synth = new tinyprimesynth::Synthesizer(saudio_sample_rate(), midi_voices);
 
-	if (!midi_synth->load_soundfont(midi_soundfont)) {
-		delete midi_track;
-		delete midi_soundfont;
+	if (!midi_synth->load_soundfont(soundfont)) {
 		delete midi_synth;
 		saudio_shutdown();
 		printf("TPSPlayer: Error loading soundfont\n");
 		sargs_shutdown();
 		exit(EXIT_FAILURE);
-	} else {
-		delete midi_soundfont; // no longer needed; soundfont is processed and loaded
 	}
 
-	if (!midi_synth->load_song(midi_track)) {
-		delete midi_track;
+	if (!midi_synth->load_song(song)) {
 		delete midi_synth;
 		saudio_shutdown();
 		printf("TPSPlayer: Error loading song\n");
 		sargs_shutdown();
 		exit(EXIT_FAILURE);
-	} else {
-		delete midi_track; // no longer needed; track is parsed and events are loaded
 	}
 
 	midi_playing = true;
@@ -146,6 +118,7 @@ int main(int argc, char *argv[]) {
 	getchar();
 
 	midi_playing = false;
+	midi_synth->stop();
 	delete midi_synth;
 	saudio_shutdown();
 	sargs_shutdown();

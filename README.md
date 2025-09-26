@@ -1,7 +1,7 @@
 # tinyprimesynth
 
 ## About
-TinyPrimeSynth is an MIT-licensed, header-only C++14 MIDI Soundfont2 synthesizer that attempts to abstract away many of the details of rendering MIDI files, providing an interface closer to that of a simple decoder. It is intended for use in game engines or other applications in which real-time playback without granular controls is sufficient. It is similar to the TinySoundFont project (https://github.com/schellingb/TinySoundFont), but provides a more robust implementation (for example, modulator support) at the expense of a somewhat higher overhead and the lack of signed 16-bit output.
+TinyPrimeSynth is an MIT-licensed, header-only C++14 MIDI soundfont synthesizer that attempts to abstract away many of the details of rendering MIDI files, providing an interface closer to that of a simple decoder. It is intended for use in game engines or other applications in which real-time playback without granular controls is sufficient. It is similar to the TinySoundFont project (https://github.com/schellingb/TinySoundFont), but provides a more robust implementation (for example, modulator support) at the expense of a somewhat higher overhead and the lack of signed 16-bit output.
 
 It integrates the PrimeSynth (https://github.com/mosmeh/primesynth) and BW_Midi_Sequencer (https://github.com/Wohlstand/BW_Midi_Sequencer) libraries, albeit with substantial modifications.
 
@@ -14,7 +14,7 @@ It integrates the PrimeSynth (https://github.com/mosmeh/primesynth) and BW_Midi_
   - More forgiving of soundfonts that are missing various presets but are otherwise correctly formed (i.e., no piano or drums)
 
 - Differences from upstream BW_Midi_Sequencer:
-  - DMX MUS conversion routines replace with zlib-licensed implementation by Steve Clark (https://github.com/fawtytoo/Mus2Midi)
+  - DMX MUS conversion routines replaced with zlib-licensed implementation by Steve Clark (https://github.com/fawtytoo/Mus2Midi)
   - Support for IMF, CMF and XMI song formats removed
   - "Real time interface" context removed
   - Support for raw OPL events/playback removed
@@ -32,23 +32,19 @@ Note that the test program uses the Sokol libraries, which are under the zlib li
 ## Usage
 - Create a new instance of the Synthesizer class, passing to it your desired output rate.
   - You can additionally pass a value for the maximum number of available voices to use. This defaults to 64 if not provided.
-    - If the number of voices is too low, you may hear notes being cutoff as they are released for use. The recommended minimum is 24 in order to adhere to the General MIDI I standard.
+    - If the number of voices is too low, you may hear notes being cut off as they are released for use. The recommended minimum is 24 in order to adhere to the General MIDI I standard.
 
-- Create a FileAndMemReader instance and load a supported soundfont (SF2) from either a file path, or a pointer to a memory buffer + its size.
-
-- Use the `load_soundfont` function of the Synthesizer class, passing to it a pointer to the soundfont's FileAndMemReader instance.
+- Use the `load_soundfont` function of the Synthesizer instance, passing to it either a file path or a pointer to a buffer in memory and its size.
+  - SF2 is currently the only supported format
   - If this function returns false, the soundfont is invalid or malformed.
   - Subsequent calls to `load_soundfont` will delete any soundfont that was previously loaded. TinyPrimeSynth does not support loading multiple soundfonts simultaneously.
-  - The soundfont's FileAndMemReader instance can be safely deleted after `load_soundfont` returns.
 
-- Create a FileAndMemReader instance and load a supported track (MIDI, EA MUS, GMF, or RMI) from either a file path or a pointer to a memory buffer + its size.
-
-- Use the `load_song` function of the Synthesizer class, passing to it a pointer to the song's FileAndMemReader instance.
+- Use the `load_song` function of the Synthesizer instance, passing to it either a file path or a pointer to a buffer in memory and its size.
+  - Supported song formats are MIDI, DMX MUS ("Doom" format), EA MUS, GMF, or RMI
   - If this function returns false, the song is invalid or malformed.
   - Subsequent calls to `load_song` will delete any track that was previously processed. TinyPrimeSynth does not support loading multiple songs simultaneously.
-  - The song's FileAndMemReader instance can be safely deleted after `load_song` returns.
 
-- Note that the FileAndMemReader class does not free any memory; if used to load from a buffer instead of a file, this buffer must be freed separately after deleting the FileAndMemReader instance (if not being used otherwise).
+- Note that the Synthesizer class will not free any memory upon completion of the `load_soundfont` or `load_song` functions; if used to load from a buffer instead of a file, this buffer must be freed separately (if not being used otherwise).
 
 - In an appropriate place in your program, call the `play_stream` function of the Synthesizer class, passing a pointer to an initialized buffer to store the generated samples and the buffer's length. In general, the buffer's length should be the desired number of samples x 2 (stereo) x sizeof(float). Generated samples will be in the form of interleaved (L/R/L/R/etc) floats.
 

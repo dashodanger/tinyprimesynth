@@ -29,45 +29,18 @@
 
 #include <stdint.h>
 #include <stdio.h>
-#include <string>
 #include <vector>
 
 namespace tinyprimesynth {
-
-class FileAndMemReader {
-public:
-	FileAndMemReader();
-	~FileAndMemReader();
-
-	void seeku(uint64_t p_pos, int p_rel_to);
-	bool is_valid() const;
-	size_t tell() const;
-	bool eof() const;
-	const std::string &file_name() const;
-	int get_character();
-	void close(bool p_free_memory = false);
-	size_t file_size();
-	size_t read(void *p_buf, size_t p_num, size_t p_size);
-	void seek(long p_pos, int p_rel_to);
-	void open_file(const char *p_path);
-	void open_data(const void *p_mem, size_t p_length);
-	const void *get_data() const;
-
-private:
-	std::string filename;
-	FILE *fp;
-	const void *mp;
-	size_t mp_size;
-	size_t mp_tell;
-};
-
 class Synthesizer {
 public:
 	Synthesizer(float p_rate, size_t p_voices = 64);
 	~Synthesizer();
 
-	bool load_soundfont(FileAndMemReader *p_font);
-	bool load_song(FileAndMemReader *p_song);
+	bool load_soundfont(const char *p_filename);
+	bool load_soundfont(const uint8_t *p_data, size_t p_length);
+	bool load_song(const char *p_filename);
+	bool load_song(const uint8_t *p_data, size_t p_length);
 	int play_stream(uint8_t *p_stream, size_t p_length);
 	void set_volume(float p_volume);
 	void pause();
@@ -112,6 +85,7 @@ private:
 #include <string.h>
 #include <list>
 #include <set>
+#include <string>
 #ifdef _WIN32
 #include <windows.h>
 #endif
@@ -375,6 +349,186 @@ static inline float convex_curve(float p_x) {
 	}
 }
 
+class FileAndMemReader {
+public:
+	FileAndMemReader() :
+			fp(NULL),
+			mp(NULL),
+			mp_size(0),
+			mp_tell(0) {}
+
+	~FileAndMemReader() {
+		close();
+	}
+
+	void seeku(uint64_t p_pos, int p_rel_to) {
+		this->seek((long)p_pos, p_rel_to);
+	}
+
+	inline bool is_valid() const {
+		return (fp) || (mp);
+	}
+
+	size_t tell() const {
+		if (!this->is_valid()) {
+			return 0;
+		}
+		if (fp) { //If a file
+			return (size_t)ftell(fp);
+		} else { //If a memory block
+			return mp_tell;
+		}
+	}
+
+	bool eof() const {
+		if (!this->is_valid()) {
+			return true;
+		}
+		if (fp) {
+			return (feof(fp) != 0);
+		} else {
+			return mp_tell >= mp_size;
+		}
+	}
+
+	int get_character() {
+		if (!this->is_valid()) {
+			return -1;
+		}
+		if (fp) //If a file
+		{
+			return getc(fp);
+		} else //If a memory block
+		{
+			if (mp_tell >= mp_size) {
+				return -1;
+			}
+			const uint8_t *block = (const uint8_t *)mp;
+			int x = block[mp_tell];
+			mp_tell++;
+			return x;
+		}
+	}
+
+	void close(bool p_free_memory = false) {
+		if (fp) {
+			fclose(fp);
+		}
+		fp = NULL;
+		if (mp && p_free_memory) {
+			void *free_me = (void *)mp;
+			free(free_me);
+		}
+		mp = NULL;
+		mp_size = 0;
+		mp_tell = 0;
+	}
+
+	size_t file_size() {
+		if (!this->is_valid()) {
+			return 0;
+		}
+		if (!fp) {
+			return mp_size; //Size of memory block is well known
+		}
+		size_t old_pos = this->tell();
+		seek(0l, SEEK_END);
+		size_t file_size = this->tell();
+		seek((long)old_pos, SEEK_SET);
+		return file_size;
+	}
+
+	size_t read(void *p_buf, size_t p_num, size_t p_size) {
+		if (!this->is_valid()) {
+			return 0;
+		}
+		if (fp) {
+			return fread(p_buf, p_num, p_size, fp);
+		} else {
+			size_t pos = 0;
+			size_t maxSize = (size_t)p_size * p_num;
+
+			while ((pos < maxSize) && (mp_tell < mp_size)) {
+				uint8_t *dest = (uint8_t *)p_buf;
+				const uint8_t *src = (const uint8_t *)mp;
+				dest[pos] = src[mp_tell];
+				mp_tell++;
+				pos++;
+			}
+
+			return pos / p_num;
+		}
+	}
+
+	void seek(long p_pos, int p_rel_to) {
+		if (!this->is_valid()) {
+			return;
+		}
+
+		if (fp) //If a file
+		{
+			fseek(fp, p_pos, p_rel_to);
+		} else //If a memory block
+		{
+			switch (p_rel_to) {
+				default:
+				case SEEK_SET:
+					mp_tell = (size_t)p_pos;
+					break;
+
+				case SEEK_END:
+					mp_tell = mp_size - (size_t)p_pos;
+					break;
+
+				case SEEK_CUR:
+					mp_tell = mp_tell + (size_t)p_pos;
+					break;
+			}
+
+			if (mp_tell > mp_size) {
+				mp_tell = mp_size;
+			}
+		}
+	}
+
+	void open_file(const char *p_path) {
+		if (fp) {
+			this->close(); //Close previously opened file first!
+		}
+#if !defined(_WIN32)
+		fp = fopen(p_path, "rb");
+#else
+		wchar_t widePath[MAX_PATH];
+		int size = MultiByteToWideChar(CP_UTF8, 0, p_path, (int)strlen(p_path), widePath, MAX_PATH);
+		widePath[size] = '\0';
+		fp = _wfopen(widePath, L"rb");
+#endif
+		mp = NULL;
+		mp_size = 0;
+		mp_tell = 0;
+	}
+
+	void open_data(const void *p_mem, size_t p_length) {
+		if (fp) {
+			this->close(); //Close previously opened file first!
+		}
+		fp = NULL;
+		mp = p_mem;
+		mp_size = p_length;
+		mp_tell = 0;
+	}
+
+	inline const void *get_data() const {
+		return mp;
+	}
+
+private:
+	FILE *fp;
+	const void *mp;
+	size_t mp_size;
+	size_t mp_tell;
+};
+
 static void mus_event_convert() {
 	uint8_t data, last, channel;
 	uint8_t event[3];
@@ -541,181 +695,6 @@ static FileAndMemReader *mus_to_midi(FileAndMemReader *p_fmr) {
 	return converted;
 }
 
-FileAndMemReader::FileAndMemReader() :
-		fp(NULL),
-		mp(NULL),
-		mp_size(0),
-		mp_tell(0) {}
-
-FileAndMemReader::~FileAndMemReader() {
-	close();
-}
-
-void FileAndMemReader::seeku(uint64_t p_pos, int p_rel_to) {
-	this->seek((long)p_pos, p_rel_to);
-}
-
-bool FileAndMemReader::is_valid() const {
-	return (fp) || (mp);
-}
-
-size_t FileAndMemReader::tell() const {
-	if (!this->is_valid()) {
-		return 0;
-	}
-	if (fp) { //If a file
-		return (size_t)ftell(fp);
-	} else { //If a memory block
-		return mp_tell;
-	}
-}
-
-bool FileAndMemReader::eof() const {
-	if (!this->is_valid()) {
-		return true;
-	}
-	if (fp) {
-		return (feof(fp) != 0);
-	} else {
-		return mp_tell >= mp_size;
-	}
-}
-
-const std::string &FileAndMemReader::file_name() const {
-	return filename;
-}
-
-void FileAndMemReader::open_file(const char *p_path) {
-	if (fp) {
-		this->close(); //Close previously opened file first!
-	}
-#if !defined(_WIN32)
-	fp = fopen(p_path, "rb");
-#else
-	wchar_t widePath[MAX_PATH];
-	int size = MultiByteToWideChar(CP_UTF8, 0, p_path, (int)strlen(p_path), widePath, MAX_PATH);
-	widePath[size] = '\0';
-	fp = _wfopen(widePath, L"rb");
-#endif
-	filename = p_path;
-	mp = NULL;
-	mp_size = 0;
-	mp_tell = 0;
-}
-
-void FileAndMemReader::open_data(const void *p_mem, size_t p_length) {
-	if (fp) {
-		this->close(); //Close previously opened file first!
-	}
-	fp = NULL;
-	mp = p_mem;
-	mp_size = p_length;
-	mp_tell = 0;
-}
-
-const void *FileAndMemReader::get_data() const {
-	return mp;
-}
-
-void FileAndMemReader::seek(long p_pos, int p_rel_to) {
-	if (!this->is_valid()) {
-		return;
-	}
-
-	if (fp) //If a file
-	{
-		fseek(fp, p_pos, p_rel_to);
-	} else //If a memory block
-	{
-		switch (p_rel_to) {
-			default:
-			case SEEK_SET:
-				mp_tell = (size_t)p_pos;
-				break;
-
-			case SEEK_END:
-				mp_tell = mp_size - (size_t)p_pos;
-				break;
-
-			case SEEK_CUR:
-				mp_tell = mp_tell + (size_t)p_pos;
-				break;
-		}
-
-		if (mp_tell > mp_size) {
-			mp_tell = mp_size;
-		}
-	}
-}
-
-size_t FileAndMemReader::read(void *p_buf, size_t p_num, size_t p_size) {
-	if (!this->is_valid()) {
-		return 0;
-	}
-	if (fp) {
-		return fread(p_buf, p_num, p_size, fp);
-	} else {
-		size_t pos = 0;
-		size_t maxSize = (size_t)p_size * p_num;
-
-		while ((pos < maxSize) && (mp_tell < mp_size)) {
-			uint8_t *dest = (uint8_t *)p_buf;
-			const uint8_t *src = (const uint8_t *)mp;
-			dest[pos] = src[mp_tell];
-			mp_tell++;
-			pos++;
-		}
-
-		return pos / p_num;
-	}
-}
-
-int FileAndMemReader::get_character() {
-	if (!this->is_valid()) {
-		return -1;
-	}
-	if (fp) //If a file
-	{
-		return getc(fp);
-	} else //If a memory block
-	{
-		if (mp_tell >= mp_size) {
-			return -1;
-		}
-		const uint8_t *block = (const uint8_t *)mp;
-		int x = block[mp_tell];
-		mp_tell++;
-		return x;
-	}
-}
-
-void FileAndMemReader::close(bool p_free_memory) {
-	if (fp) {
-		fclose(fp);
-	}
-	fp = NULL;
-	if (mp && p_free_memory) {
-		void *free_me = (void *)mp;
-		free(free_me);
-	}
-	mp = NULL;
-	mp_size = 0;
-	mp_tell = 0;
-}
-
-size_t FileAndMemReader::file_size() {
-	if (!this->is_valid()) {
-		return 0;
-	}
-	if (!fp) {
-		return mp_size; //Size of memory block is well known
-	}
-	size_t old_pos = this->tell();
-	seek(0l, SEEK_END);
-	size_t file_size = this->tell();
-	seek((long)old_pos, SEEK_SET);
-	return file_size;
-}
 struct SF2Modulator {
 	union {
 		GeneralController general;
@@ -4563,17 +4542,60 @@ Synthesizer::~Synthesizer() {
 	}
 }
 
-bool Synthesizer::load_soundfont(FileAndMemReader *p_font) {
+bool Synthesizer::load_soundfont(const char *p_filename) {
 	if (soundfont) {
 		delete soundfont;
 	}
+	FileAndMemReader *p_font = new FileAndMemReader;
+	p_font->open_file(p_filename);
+	if (!p_font->is_valid()) {
+		delete p_font;
+		return false;
+	}
 	load_error = false;
 	soundfont = new SoundFont(p_font, this);
+	delete p_font;
 	return !load_error;
 }
 
-bool Synthesizer::load_song(FileAndMemReader *p_song) {
-	return sequencer->load_midi(p_song);
+bool Synthesizer::load_soundfont(const uint8_t *p_data, size_t p_length) {
+	if (soundfont) {
+		delete soundfont;
+	}
+	FileAndMemReader *p_font = new FileAndMemReader;
+	p_font->open_data(p_data, p_length);
+	if (!p_font->is_valid()) {
+		delete p_font;
+		return false;
+	}
+	load_error = false;
+	soundfont = new SoundFont(p_font, this);
+	delete p_font;
+	return !load_error;
+}
+
+bool Synthesizer::load_song(const char *p_filename) {
+	FileAndMemReader *p_song = new FileAndMemReader;
+	p_song->open_file(p_filename);
+	if (!p_song->is_valid()) {
+		delete p_song;
+		return false;
+	}
+	bool result = sequencer->load_midi(p_song);
+	delete p_song;
+	return result;
+}
+
+bool Synthesizer::load_song(const uint8_t *p_data, size_t p_length) {
+	FileAndMemReader *p_song = new FileAndMemReader;
+	p_song->open_data(p_data, p_length);
+	if (!p_song->is_valid()) {
+		delete p_song;
+		return false;
+	}
+	bool result = sequencer->load_midi(p_song);
+	delete p_song;
+	return result;
 }
 
 bool Synthesizer::get_load_error(void) const {
