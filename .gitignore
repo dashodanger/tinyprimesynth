@@ -1,4 +1,6 @@
 .vscode
 build
-tpsplayer.exe
-tpsplayer
+example/tpsplayer.exe
+example/tpsplayer
+sf2flac/sf2flac
+sf2flac/sf2flac.exe

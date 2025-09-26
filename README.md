@@ -1,4 +1,4 @@
-# tinyprimesynth
+# TinyPrimeSynth
 
 ## About
 TinyPrimeSynth is an MIT-licensed, header-only C++11 MIDI soundfont synthesizer that attempts to abstract away many of the details of rendering MIDI files, providing an interface closer to that of a simple decoder. It is intended for use in game engines or other applications in which real-time playback without granular controls is sufficient. It is similar to the TinySoundFont project (https://github.com/schellingb/TinySoundFont), but provides a more robust implementation (for example, modulator support) at the expense of a somewhat higher overhead and the lack of signed 16-bit output.
@@ -24,13 +24,17 @@ It integrates the PrimeSynth (https://github.com/mosmeh/primesynth) and BW_Midi_
 ## Compilation
 Define `TINYPRIMESYNTH_IMPLEMENTATION` before including `tinyprimesynth.hpp` in one source file within your project. It can then be included anywhere else that it needs to be referenced.
 
-You may also define `TINYPRIMESYNTH_FLAC_SUPPORT` before `TINYPRIMESYNTH_IMPLEMENTAITON` to enable the internal FLAC decoder. This will allow for SF2FLAC (regular sf2 files which are FLAC-encoded) soundfont support. If you are already using a flac decoder in your program, you can leave this undefined and decode the SF2FLAC soundfont prior to loading into TinyPrimeSynth.
+You may also define `TINYPRIMESYNTH_FLAC_SUPPORT` before `TINYPRIMESYNTH_IMPLEMENTATION` to enable the internal FLAC decoder. This will allow for SF2FLAC (regular sf2 files which are FLAC-encoded) soundfont support. If you are already using a flac decoder in your program, you can leave this undefined and decode the SF2FLAC soundfont prior to loading into TinyPrimeSynth.
+
+Any FLAC encoder may be used to create SF2FLAC files, but a simple encoder can be built with the files in the `sf2flac` directory. sf2flac treats the first argument passed to it as an sf2 file and attempts to encode it accordingly. If you are using your own encoder, it is recommended to treat the SF2 as a series of raw 16-bit signed samples. 
+
+Note that sf2flac uses the tflac library, which is under the BSD0 license. This does not affect TinyPrimeSynth when compiled on its own.
 
 To compile a test program for Windows or Linux, please use the CMakeLists file in the `example` directory. It has a command-line interface whose usage can be shown with the 'help' parameter. You can pass either the bundled song and soundfont, or paths to your own.
 
 If both the soundfont and song are successfully loaded, playback will begin. The song will loop indefinitely. Press enter or issue a break command to exit at any time.
 
-Note that the test program uses the Sokol libraries, which are under the zlib license. It is bundled with `sf_GMbank.sf2` (encoded and renamed to `csound.sf2flac`), a public domain soundfont provided by the CSound project (https://github.com/csound/csound). It is also bundled with the track `ant_farm_melee.mid`, composed by Lee Jackson (https://dleejackson.lbjackson.com/) and used under the CC-BY-SA 4.0 license. None of these licenses affect tinyprimesynth when compiled on its own.
+Note that the test program uses the Sokol libraries, which are under the zlib license. It is bundled with `sf_GMbank.sf2` (encoded and renamed to `csound.sf2flac`), a public domain soundfont provided by the CSound project (https://github.com/csound/csound). It is also bundled with the track `ant_farm_melee.mid`, composed by Lee Jackson (https://dleejackson.lbjackson.com/) and used under the CC-BY-SA 4.0 license. None of these licenses affect TinyPrimeSynth when compiled on its own.
 
 ## Usage
 - Create a new instance of the Synthesizer class, passing to it your desired output rate.
